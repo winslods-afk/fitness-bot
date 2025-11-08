@@ -87,6 +87,8 @@ async def process_day_name(message: Message, state: FSMContext):
     await state.update_data(program_data=program_data)
     await state.set_state(AddProgramStates.waiting_for_exercise)
     
+    from app.utils.keyboards import get_finish_day_keyboard
+    
     await message.answer(
         f"День «{day_name}» добавлен.\n\n"
         f"Теперь добавьте упражнения для этого дня.\n"
@@ -99,13 +101,41 @@ async def process_day_name(message: Message, state: FSMContext):
         f"Хаммер верхний — 16-10-12\n"
         f"Хаммер горизонт — 16-10-12\n"
         f"Тяга рейдера — 20-12-15\n\n"
-        f"Когда закончите с упражнениями для этого дня, отправьте /done"
+        f"Когда закончите, нажмите кнопку «✅ Завершить день»",
+        reply_markup=get_finish_day_keyboard()
     )
+
+
+@router.callback_query(F.data == "finish_day")
+async def finish_day_callback(callback: CallbackQuery, state: FSMContext):
+    """Завершение добавления упражнений для дня через кнопку."""
+    await callback.answer()
+    
+    data = await state.get_data()
+    current_day_index = data.get("current_day_index", 0)
+    days_count = data.get("days_count", 0)
+    program_data = data.get("program_data", {"days": []})
+    
+    current_day_index += 1
+    
+    if current_day_index >= days_count:
+        # Все дни добавлены, запрашиваем название программы
+        await state.set_state(AddProgramStates.waiting_for_program_name)
+        await callback.message.edit_text(
+            "✅ Все дни добавлены!\n\nВведите название для программы:"
+        )
+    else:
+        # Переходим к следующему дню
+        await state.update_data(current_day_index=current_day_index)
+        await state.set_state(AddProgramStates.waiting_for_day_name)
+        await callback.message.edit_text(
+            f"✅ День завершён!\n\nВведите название для дня {current_day_index + 1}:"
+        )
 
 
 @router.message(AddProgramStates.waiting_for_exercise, F.text == "/done")
 async def finish_day(message: Message, state: FSMContext):
-    """Завершение добавления упражнений для дня."""
+    """Завершение добавления упражнений для дня (старый способ через команду)."""
     data = await state.get_data()
     current_day_index = data.get("current_day_index", 0)
     days_count = data.get("days_count", 0)
@@ -117,14 +147,14 @@ async def finish_day(message: Message, state: FSMContext):
         # Все дни добавлены, запрашиваем название программы
         await state.set_state(AddProgramStates.waiting_for_program_name)
         await message.answer(
-            "Все дни добавлены! Введите название для программы:"
+            "✅ Все дни добавлены!\n\nВведите название для программы:"
         )
     else:
         # Переходим к следующему дню
         await state.update_data(current_day_index=current_day_index)
         await state.set_state(AddProgramStates.waiting_for_day_name)
         await message.answer(
-            f"Введите название для дня {current_day_index + 1}:"
+            f"✅ День завершён!\n\nВведите название для дня {current_day_index + 1}:"
         )
 
 
@@ -208,9 +238,11 @@ async def process_exercise(message: Message, state: FSMContext):
         if len(errors) > 3:
             response_parts.append(f"  ... и ещё {len(errors) - 3} ошибок")
     
-    response_parts.append("\nПродолжайте добавлять упражнения или отправьте /done для завершения дня.")
+    from app.utils.keyboards import get_finish_day_keyboard
     
-    await message.answer("\n".join(response_parts))
+    response_parts.append("\n💡 Продолжайте добавлять упражнения или нажмите «✅ Завершить день».")
+    
+    await message.answer("\n".join(response_parts), reply_markup=get_finish_day_keyboard())
 
 
 @router.message(AddProgramStates.waiting_for_program_name)

@@ -79,3 +79,11 @@ def get_start_training_keyboard() -> InlineKeyboardMarkup:
         ]
     )
 
+
+def get_finish_day_keyboard() -> InlineKeyboardMarkup:
+    """Клавиатура для завершения дня."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Завершить день", callback_data="finish_day")]
+        ]
+    )
