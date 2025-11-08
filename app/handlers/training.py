@@ -200,16 +200,27 @@ async def ask_for_weight(
         session, user.id, exercise["exercise_id"], current_set["set_index"]
     )
     
-    # Формируем сообщение
-    text = (
-        f"💪 {exercise['name']}\n"
-        f"Подход {current_set['set_index']}: {current_set['reps']} раз\n\n"
+    # Получаем информацию о прошлой тренировке для контекста
+    last_performed_set = await crud.get_last_performed_set_for_exercise(
+        session, user.id, exercise["exercise_id"], current_set["set_index"]
     )
     
-    if last_weight:
-        text += f"Ваш рабочий вес в подходе {current_set['set_index']}: (прошлая тренировка — {last_weight} кг)\n\n"
+    # Формируем сообщение
+    text = f"💪 {exercise['name']}\n"
+    text += f"Подход {current_set['set_index']}: {current_set['reps']} раз\n\n"
     
-    text += "Введите вес (в кг):"
+    if last_weight:
+        text += f"📊 Ваш прошлый вес в этом подходе: {last_weight} кг\n"
+        if last_performed_set and last_performed_set.timestamp:
+            from datetime import datetime
+            # Форматируем дату последней тренировки
+            date_str = last_performed_set.timestamp.strftime("%d.%m.%Y")
+            text += f"   (последняя тренировка: {date_str})\n"
+        text += "\n"
+    else:
+        text += "📊 Это первый раз для этого подхода\n\n"
+    
+    text += "Введите вес для этого подхода (в кг):"
     
     await message.answer(text)
 
