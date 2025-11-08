@@ -95,6 +95,10 @@ async def process_day_name(message: Message, state: FSMContext):
         f"• Гакк-присед — 20-16-14-12\n"
         f"• Жим лёжа — 4х10\n"
         f"• Подтягивания — 4 подхода по 10 раз\n\n"
+        f"💡 Вы можете ввести несколько упражнений в одном сообщении (каждое на новой строке):\n"
+        f"Хаммер верхний — 16-10-12\n"
+        f"Хаммер горизонт — 16-10-12\n"
+        f"Тяга рейдера — 20-12-15\n\n"
         f"Когда закончите с упражнениями для этого дня, отправьте /done"
     )
 
@@ -126,57 +130,87 @@ async def finish_day(message: Message, state: FSMContext):
 
 @router.message(AddProgramStates.waiting_for_exercise)
 async def process_exercise(message: Message, state: FSMContext):
-    """Обработка упражнения."""
+    """Обработка упражнения (поддерживает многострочный ввод)."""
     exercise_text = message.text.strip()
     
     if not exercise_text:
         await message.answer("Пожалуйста, введите упражнение в правильном формате.")
         return
     
-    try:
-        exercise_name, reps_list = parse_exercise_string(exercise_text)
+    # Разбиваем на строки, если пользователь ввел несколько упражнений
+    lines = [line.strip() for line in exercise_text.split('\n') if line.strip()]
+    
+    if not lines:
+        await message.answer("Пожалуйста, введите упражнение в правильном формате.")
+        return
+    
+    data = await state.get_data()
+    program_data = data.get("program_data", {"days": []})
+    current_day_index = data.get("current_day_index", 0)
+    
+    added_count = 0
+    errors = []
+    
+    # Обрабатываем каждую строку как отдельное упражнение
+    for line in lines:
+        try:
+            exercise_name, reps_list = parse_exercise_string(line)
+            
+            if not exercise_name:
+                errors.append(f"❌ Не удалось распознать: {line[:30]}...")
+                continue
+            
+            if not reps_list:
+                errors.append(
+                    f"❌ Не удалось распознать подходы в: {line[:30]}...\n"
+                    f"   Используйте формат: Название — 20-16-14-12"
+                )
+                continue
+            
+            # Форматируем название упражнения
+            formatted_name = format_exercise_name(exercise_name, len(reps_list))
+            
+            # Добавляем упражнение
+            program_data["days"][current_day_index]["exercises"].append({
+                "name": formatted_name,
+                "reps": reps_list
+            })
+            
+            added_count += 1
+            
+        except Exception as e:
+            errors.append(f"❌ Ошибка в строке '{line[:30]}...': {str(e)}")
+    
+    await state.update_data(program_data=program_data)
+    
+    # Формируем ответ
+    response_parts = []
+    
+    if added_count > 0:
+        response_parts.append(f"✅ Добавлено упражнений: {added_count}")
         
-        if not exercise_name:
-            await message.answer("Не удалось распознать название упражнения. Попробуйте ещё раз.")
-            return
-        
-        if not reps_list:
-            await message.answer(
-                "Не удалось распознать подходы. Используйте формат:\n"
-                "• Название — 20-16-14-12\n"
-                "• Название — 4х10\n"
-                "• Название — 4 подхода по 10 раз"
-            )
-            return
-        
-        data = await state.get_data()
-        program_data = data.get("program_data", {"days": []})
-        current_day_index = data.get("current_day_index", 0)
-        
-        # Форматируем название упражнения
-        formatted_name = format_exercise_name(exercise_name, len(reps_list))
-        
-        # Добавляем упражнение
-        program_data["days"][current_day_index]["exercises"].append({
-            "name": formatted_name,
-            "reps": reps_list
-        })
-        
-        await state.update_data(program_data=program_data)
-        
-        # Подтверждение
-        sets_text = ", ".join([str(r) for r in reps_list])
-        await message.answer(
-            f"✅ Добавлено: {formatted_name}\n"
-            f"Подходы: {sets_text}\n\n"
-            f"Продолжайте добавлять упражнения или отправьте /done для завершения дня."
-        )
-        
-    except Exception as e:
-        await message.answer(
-            f"Ошибка при обработке упражнения: {str(e)}\n"
-            f"Попробуйте ввести в другом формате."
-        )
+        # Показываем последние добавленные упражнения
+        if added_count <= 3:
+            for i in range(added_count):
+                exercise = program_data["days"][current_day_index]["exercises"][-(added_count - i)]
+                sets_text = ", ".join([str(r) for r in exercise["reps"]])
+                response_parts.append(f"  • {exercise['name']} ({sets_text})")
+        else:
+            # Если много упражнений, показываем только последнее
+            last_exercise = program_data["days"][current_day_index]["exercises"][-1]
+            sets_text = ", ".join([str(r) for r in last_exercise["reps"]])
+            response_parts.append(f"  • {last_exercise['name']} ({sets_text})")
+            response_parts.append(f"  ... и ещё {added_count - 1} упражнений")
+    
+    if errors:
+        response_parts.append("\n⚠️ Ошибки:")
+        response_parts.extend(errors[:3])  # Показываем максимум 3 ошибки
+        if len(errors) > 3:
+            response_parts.append(f"  ... и ещё {len(errors) - 3} ошибок")
+    
+    response_parts.append("\nПродолжайте добавлять упражнения или отправьте /done для завершения дня.")
+    
+    await message.answer("\n".join(response_parts))
 
 
 @router.message(AddProgramStates.waiting_for_program_name)

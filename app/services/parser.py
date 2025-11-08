@@ -19,18 +19,43 @@ def parse_exercise_string(text: str) -> Tuple[str, List[int]]:
     """
     text = text.strip()
     
-    # Разделители для названия и подходов
-    separators = ["—", "-", "–", "—"]
+    # Разделители для названия и подходов (используем длинное тире в первую очередь)
+    # Ищем разделитель, который отделяет название от подходов
+    # Приоритет: длинное тире, обычный дефис (но только если после него идут числа)
+    
     exercise_name = text
     sets_part = ""
     
-    for sep in separators:
-        if sep in text:
-            parts = text.split(sep, 1)
-            if len(parts) == 2:
-                exercise_name = parts[0].strip()
-                sets_part = parts[1].strip()
-                break
+    # Сначала ищем длинное тире (—) - это самый надежный разделитель
+    if "—" in text:
+        parts = text.split("—", 1)
+        if len(parts) == 2:
+            exercise_name = parts[0].strip()
+            sets_part = parts[1].strip()
+    
+    # Если не нашли длинное тире, ищем обычный дефис
+    # Но только если после дефиса идет паттерн подходов (числа через дефис или x)
+    if not sets_part and "-" in text:
+        # Ищем паттерн подходов в конце строки
+        # Форматы: "20-12-15", "4x10", "4х10"
+        pattern = r'[-–]\s*(\d+[xх]\d+|\d+-\d+(?:-\d+)*|\d+\s+подход)'
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            # Нашли паттерн подходов, разделяем по этому дефису
+            split_pos = match.start()
+            exercise_name = text[:split_pos].strip()
+            sets_part = text[split_pos + 1:].strip()  # Убираем дефис
+        else:
+            # Если паттерна нет, пробуем разделить по последнему дефису
+            # (на случай формата "Название - 20-12-15")
+            last_dash = text.rfind("-")
+            if last_dash > 0:
+                potential_name = text[:last_dash].strip()
+                potential_sets = text[last_dash + 1:].strip()
+                # Проверяем, что после дефиса есть числа
+                if re.search(r'\d', potential_sets):
+                    exercise_name = potential_name
+                    sets_part = potential_sets
     
     if not sets_part:
         # Если разделителя нет, пытаемся найти паттерн подходов в конце
