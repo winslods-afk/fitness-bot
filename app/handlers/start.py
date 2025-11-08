@@ -1,14 +1,19 @@
 """Обработчики команды /start и главного меню."""
 from aiogram import Router, F
-from aiogram.types import Message
+from aiogram.types import Message, BufferedInputFile
 from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
+import os
 
 from app.db import crud
 from app.utils.keyboards import get_main_keyboard
 from app.utils.messages import get_welcome_message
+from app.config import DB_PATH
 
 router = Router()
+
+# ID администраторов (замените на свой Telegram ID)
+ADMIN_IDS = []  # Добавьте сюда ваш Telegram ID, например: [123456789]
 
 
 @router.message(F.text == "Перезапустить Бота")
@@ -73,4 +78,32 @@ async def cmd_myprograms(message: Message, session: AsyncSession):
     text = format_program_list(programs)
     
     await message.answer(text, reply_markup=get_main_keyboard())
+
+
+@router.message(F.text == "/export_db")
+async def cmd_export_db(message: Message):
+    """Экспорт базы данных (только для администраторов)."""
+    if not ADMIN_IDS or message.from_user.id not in ADMIN_IDS:
+        await message.answer("❌ У вас нет прав для выполнения этой команды.")
+        return
+    
+    try:
+        # Проверяем существование файла базы данных
+        db_path = DB_PATH
+        if not os.path.exists(db_path):
+            await message.answer(f"❌ База данных не найдена по пути: {db_path}")
+            return
+        
+        # Читаем базу данных
+        with open(db_path, "rb") as db_file:
+            db_data = db_file.read()
+            await message.answer_document(
+                document=BufferedInputFile(
+                    db_data,
+                    filename="fitness_bot.db"
+                ),
+                caption="📊 База данных проекта"
+            )
+    except Exception as e:
+        await message.answer(f"❌ Ошибка при экспорте базы данных: {str(e)}")
 
