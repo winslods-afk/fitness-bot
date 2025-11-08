@@ -232,3 +232,43 @@ async def get_last_performed_set_for_exercise(
     )
     return result.scalar_one_or_none()
 
+
+async def get_last_weight_for_exercise_by_name(
+    session: AsyncSession, user_id: int, exercise_name: str, set_index: int
+) -> Optional[float]:
+    """Получить последний вес для упражнения по названию (независимо от exercise_id)."""
+    # Ищем по названию упражнения среди всех упражнений пользователя
+    subquery = (
+        select(PerformedSet.weight)
+        .join(SessionRun, PerformedSet.session_run_id == SessionRun.id)
+        .join(Exercise, PerformedSet.exercise_id == Exercise.exercise_id)
+        .where(
+            SessionRun.user_id == user_id,
+            Exercise.name == exercise_name,
+            PerformedSet.set_index == set_index
+        )
+        .order_by(desc(PerformedSet.timestamp))
+        .limit(1)
+    )
+    result = await session.execute(subquery)
+    return result.scalar_one_or_none()
+
+
+async def get_last_performed_set_for_exercise_by_name(
+    session: AsyncSession, user_id: int, exercise_name: str, set_index: int
+) -> Optional[PerformedSet]:
+    """Получить последний выполненный подход для упражнения по названию."""
+    result = await session.execute(
+        select(PerformedSet)
+        .join(SessionRun, PerformedSet.session_run_id == SessionRun.id)
+        .join(Exercise, PerformedSet.exercise_id == Exercise.exercise_id)
+        .where(
+            SessionRun.user_id == user_id,
+            Exercise.name == exercise_name,
+            PerformedSet.set_index == set_index
+        )
+        .order_by(desc(PerformedSet.timestamp))
+        .limit(1)
+        .options(selectinload(PerformedSet.exercise))
+    )
+    return result.scalar_one_or_none()
