@@ -155,7 +155,9 @@ async def create_session_run(
 async def get_session_run(session: AsyncSession, run_id: int) -> Optional[SessionRun]:
     """Получить запуск тренировки."""
     result = await session.execute(
-        select(SessionRun).where(SessionRun.id == run_id)
+        select(SessionRun)
+        .where(SessionRun.id == run_id)
+        .options(selectinload(SessionRun.session))
     )
     return result.scalar_one_or_none()
 

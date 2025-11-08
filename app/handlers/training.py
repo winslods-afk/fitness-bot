@@ -286,6 +286,19 @@ async def process_weight(message: Message, state: FSMContext, session: AsyncSess
         # Переходим к следующему подходу
         current_set_index += 1
         if current_set_index >= len(exercise["sets"]):
+            # Упражнение завершено - показываем сообщение
+            exercise_name = exercise["name"]
+            # Извлекаем базовое название
+            import re
+            # Если это исходный формат (содержит " — числа"), извлекаем название до " —"
+            if " — " in exercise_name or " - " in exercise_name:
+                # Исходный формат: "Хаммер верхний — 16-10-12"
+                base_name = re.split(r'\s*[—–-]\s*', exercise_name)[0].strip()
+            else:
+                # Форматированное название: "Хаммер верхний — 3 подхода"
+                base_name = re.sub(r'\s*—\s*\d+\s+подхода?', '', exercise_name).strip()
+            await message.answer(f"✅ Упражнение «{base_name}» завершено")
+            
             # Переходим к следующему упражнению
             current_exercise_index += 1
             current_set_index = 0
@@ -315,9 +328,21 @@ async def finish_training(message: Message, session: AsyncSession, state: FSMCon
         await state.clear()
         return
     
+    # Получаем название программы
+    session_run = await crud.get_session_run(session, session_run_id)
+    program_name = ""
+    if session_run and session_run.session:
+        program_name = session_run.session.name
+    
     # Получаем статистику сравнения
     user = await crud.get_or_create_user(session, message.from_user.id)
     stats = await get_comparison_stats(session, user.id, performed_sets)
+    
+    # Показываем сообщение о завершении тренировки
+    if program_name:
+        await message.answer(f"🎉 Тренировка «{program_name}» закончена!")
+    else:
+        await message.answer("🎉 Тренировка закончена!")
     
     # Формируем итоговое сообщение
     summary = format_training_summary(performed_sets, stats)
