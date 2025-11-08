@@ -4,7 +4,8 @@ from typing import Optional
 from app.config import BOT_TOKEN
 
 # Поддерживаемые AI провайдеры
-AI_PROVIDER = os.getenv("AI_PROVIDER", "none")  # openai, yandex, anthropic, none
+# openai, yandex, anthropic, google, groq, ollama, none
+AI_PROVIDER = os.getenv("AI_PROVIDER", "none")
 
 # Контекст для AI
 FITNESS_BOT_CONTEXT = """Ты — помощник фитнес-бота для отслеживания тренировок и рабочих весов.
@@ -56,6 +57,12 @@ async def get_ai_response(user_message: str, user_context: Optional[str] = None)
             return await _get_yandex_response(user_message, context)
         elif AI_PROVIDER == "anthropic":
             return await _get_anthropic_response(user_message, context)
+        elif AI_PROVIDER == "google":
+            return await _get_google_response(user_message, context)
+        elif AI_PROVIDER == "groq":
+            return await _get_groq_response(user_message, context)
+        elif AI_PROVIDER == "ollama":
+            return await _get_ollama_response(user_message, context)
         else:
             return None
     except Exception as e:
@@ -157,6 +164,89 @@ async def _get_anthropic_response(message: str, context: str) -> Optional[str]:
         return None
 
 
+async def _get_google_response(message: str, context: str) -> Optional[str]:
+    """Получить ответ от Google Gemini."""
+    try:
+        import google.generativeai as genai
+        
+        api_key = os.getenv("GOOGLE_API_KEY")
+        if not api_key:
+            return None
+        
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel(os.getenv("GOOGLE_MODEL", "gemini-pro"))
+        
+        prompt = f"{context}\n\nПользователь: {message}\n\nПомощник:"
+        response = await model.generate_content_async(prompt)
+        
+        return response.text
+    except ImportError:
+        return None
+    except Exception:
+        return None
+
+
+async def _get_groq_response(message: str, context: str) -> Optional[str]:
+    """Получить ответ от Groq (быстрый и бесплатный)."""
+    try:
+        from groq import AsyncGroq
+        
+        api_key = os.getenv("GROQ_API_KEY")
+        if not api_key:
+            return None
+        
+        client = AsyncGroq(api_key=api_key)
+        
+        response = await client.chat.completions.create(
+            model=os.getenv("GROQ_MODEL", "llama-3.1-70b-versatile"),
+            messages=[
+                {"role": "system", "content": context},
+                {"role": "user", "content": message}
+            ],
+            max_tokens=500,
+            temperature=0.7
+        )
+        
+        return response.choices[0].message.content
+    except ImportError:
+        return None
+    except Exception:
+        return None
+
+
+async def _get_ollama_response(message: str, context: str) -> Optional[str]:
+    """Получить ответ от Ollama (локальные модели)."""
+    try:
+        import aiohttp
+        
+        ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
+        model = os.getenv("OLLAMA_MODEL", "llama3")
+        
+        url = f"{ollama_url}/api/chat"
+        data = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": context},
+                {"role": "user", "content": message}
+            ],
+            "stream": False,
+            "options": {
+                "temperature": 0.7,
+                "num_predict": 500
+            }
+        }
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=data) as resp:
+                if resp.status == 200:
+                    result = await resp.json()
+                    return result.get("message", {}).get("content")
+        
+        return None
+    except Exception:
+        return None
+
+
 def is_ai_enabled() -> bool:
     """Проверить, включен ли AI."""
     if AI_PROVIDER == "none":
@@ -169,6 +259,13 @@ def is_ai_enabled() -> bool:
         return os.getenv("YANDEX_API_KEY") is not None and os.getenv("YANDEX_FOLDER_ID") is not None
     elif AI_PROVIDER == "anthropic":
         return os.getenv("ANTHROPIC_API_KEY") is not None
+    elif AI_PROVIDER == "google":
+        return os.getenv("GOOGLE_API_KEY") is not None
+    elif AI_PROVIDER == "groq":
+        return os.getenv("GROQ_API_KEY") is not None
+    elif AI_PROVIDER == "ollama":
+        # Для Ollama проверяем только наличие URL (может быть локальным)
+        return True  # Ollama может работать без ключа
     
     return False
 

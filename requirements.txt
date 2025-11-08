@@ -4,6 +4,8 @@ sqlalchemy[asyncio]==2.0.36
 python-dotenv==1.0.1
 # AI провайдеры (опционально, установите нужный)
 openai>=1.0.0  # Для OpenAI GPT
-aiohttp>=3.9.0  # Для Yandex GPT
+aiohttp>=3.9.0  # Для Yandex GPT, Ollama
 anthropic>=0.18.0  # Для Anthropic Claude
+google-generativeai>=0.3.0  # Для Google Gemini
+groq>=0.4.0  # Для Groq (быстрый и бесплатный)
 
