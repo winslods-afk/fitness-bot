@@ -25,10 +25,15 @@ async def setup_database():
 
 def setup_handlers(dp: Dispatcher):
     """Регистрация всех обработчиков."""
+    # Системные обработчики (команды) - высокий приоритет
     dp.include_router(start.router)
     dp.include_router(add_program.router)
     dp.include_router(delete_program.router)
     dp.include_router(training.router)
+    
+    # AI обработчик - низкий приоритет (обрабатывает свободные сообщения)
+    from app.handlers import ai_handler
+    dp.include_router(ai_handler.router)
 
 
 async def create_bot() -> tuple[Bot, Dispatcher]:
