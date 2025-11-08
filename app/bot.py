@@ -31,8 +31,11 @@ def setup_handlers(dp: Dispatcher):
     dp.include_router(delete_program.router)
     dp.include_router(training.router)
     
-    # AI обработчик - низкий приоритет (обрабатывает свободные сообщения)
-    from app.handlers import ai_handler
+    # AI обработчики
+    from app.handlers import ai_handler, ai_program
+    # Обработчик создания программ через AI (высокий приоритет)
+    dp.include_router(ai_program.router)
+    # Обработчик свободных сообщений (низкий приоритет)
     dp.include_router(ai_handler.router)
 
 
