@@ -59,7 +59,7 @@ async def process_days_count(callback: CallbackQuery, state: FSMContext):
     await state.set_state(AddProgramStates.waiting_for_day_name)
     
     await callback.message.edit_text(
-        f"Введите название для дня {days_count} (например: Спина, Грудь, Ноги):"
+        f"Введите название для дня 1 (например: Спина, Грудь, Ноги):"
     )
     await callback.answer()
 
