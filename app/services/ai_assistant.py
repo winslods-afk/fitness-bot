@@ -4,7 +4,7 @@ from typing import Optional
 from app.config import BOT_TOKEN
 
 # Поддерживаемые AI провайдеры
-AI_PROVIDER = os.getenv("AI_PROVIDER", "openai")  # openai, yandex, anthropic, none
+AI_PROVIDER = os.getenv("AI_PROVIDER", "none")  # openai, yandex, anthropic, none
 
 # Контекст для AI
 FITNESS_BOT_CONTEXT = """Ты — помощник фитнес-бота для отслеживания тренировок и рабочих весов.
@@ -157,5 +157,16 @@ async def _get_anthropic_response(message: str, context: str) -> Optional[str]:
 
 def is_ai_enabled() -> bool:
     """Проверить, включен ли AI."""
-    return AI_PROVIDER != "none" and os.getenv(f"{AI_PROVIDER.upper()}_API_KEY") is not None
+    if AI_PROVIDER == "none":
+        return False
+    
+    # Проверяем наличие API ключа для выбранного провайдера
+    if AI_PROVIDER == "openai":
+        return os.getenv("OPENAI_API_KEY") is not None
+    elif AI_PROVIDER == "yandex":
+        return os.getenv("YANDEX_API_KEY") is not None and os.getenv("YANDEX_FOLDER_ID") is not None
+    elif AI_PROVIDER == "anthropic":
+        return os.getenv("ANTHROPIC_API_KEY") is not None
+    
+    return False
 

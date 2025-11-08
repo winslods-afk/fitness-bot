@@ -62,17 +62,32 @@ async def handle_free_message(message: Message, state: FSMContext, session: Asyn
     await message.bot.send_chat_action(message.chat.id, "typing")
     
     # Получаем ответ от AI
-    ai_response = await get_ai_response(message.text, user_context)
-    
-    if ai_response:
+    try:
+        ai_response = await get_ai_response(message.text, user_context)
+        
+        if ai_response:
+            await message.answer(
+                ai_response,
+                reply_markup=get_main_keyboard()
+            )
+        else:
+            # Если AI не ответил (ошибка API или другие проблемы)
+            await message.answer(
+                "🤖 Извините, не удалось получить ответ от AI ассистента.\n\n"
+                "Возможные причины:\n"
+                "• Проблемы с API провайдера\n"
+                "• Неверный API ключ\n"
+                "• Превышен лимит запросов\n\n"
+                "Попробуйте позже или используйте команды бота.",
+                reply_markup=get_main_keyboard()
+            )
+    except Exception as e:
+        # Логируем ошибку
+        import logging
+        logging.error(f"AI handler error: {str(e)}", exc_info=True)
+        
         await message.answer(
-            ai_response,
-            reply_markup=get_main_keyboard()
-        )
-    else:
-        # Если AI не ответил, можно показать стандартное сообщение
-        await message.answer(
-            "🤖 AI ассистент временно недоступен.\n\n"
+            "🤖 Произошла ошибка при обращении к AI ассистенту.\n\n"
             "Используйте команды бота или меню для работы с программами тренировок.",
             reply_markup=get_main_keyboard()
         )
