@@ -29,7 +29,7 @@ def format_program_list(programs: List) -> str:
 
 
 def format_workout_day_info(day, exercises: List) -> str:
-    """Форматирует информацию о тренировочном дне."""
+    """Форматирует информацию о тренировочном дне в исходном формате."""
     text = f"📅 {day.name}\n\n"
     
     if not exercises:
@@ -37,15 +37,27 @@ def format_workout_day_info(day, exercises: List) -> str:
         return text
     
     for exercise in exercises:
-        text += f"💪 {exercise.name}\n"
-        if exercise.sets:
-            sets_info = []
-            for set_obj in sorted(exercise.sets, key=lambda x: x.set_index):
-                reps_text = f"{set_obj.reps} раз"
-                if set_obj.weight:
-                    reps_text += f" (вес: {set_obj.weight} кг)"
-                sets_info.append(f"  Подход {set_obj.set_index}: {reps_text}")
-            text += "\n".join(sets_info) + "\n\n"
+        # Показываем упражнение в исходном формате
+        # Если в name сохранен исходный формат (содержит дефисы с числами), показываем его
+        # Иначе восстанавливаем из sets
+        exercise_name = exercise.name
+        
+        # Проверяем, является ли name исходным форматом (содержит паттерн "— число-число" или "— числоxчисло")
+        import re
+        if re.search(r'—\s*\d+[-\d]*[xх]?\d*', exercise_name) or re.search(r'-\s*\d+[-\d]*[xх]?\d*', exercise_name):
+            # Это исходный формат, показываем как есть
+            text += f"{exercise_name}\n"
+        else:
+            # Это formatted_name, восстанавливаем исходный формат из sets
+            if exercise.sets:
+                reps_list = [str(set_obj.reps) for set_obj in sorted(exercise.sets, key=lambda x: x.set_index)]
+                # Извлекаем базовое название (убираем " — N подхода")
+                base_name = re.sub(r'\s*—\s*\d+\s+подхода?', '', exercise_name).strip()
+                # Формируем исходный формат: "Название — 16-10-12"
+                original_format = f"{base_name} — {'-'.join(reps_list)}"
+                text += f"{original_format}\n"
+            else:
+                text += f"{exercise_name}\n"
     
     return text
 

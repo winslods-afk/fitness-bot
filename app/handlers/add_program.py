@@ -197,12 +197,14 @@ async def process_exercise(message: Message, state: FSMContext):
                 )
                 continue
             
-            # Форматируем название упражнения
+            # Сохраняем исходный формат ввода для отображения
+            # Форматируем название упражнения для внутреннего использования
             formatted_name = format_exercise_name(exercise_name, len(reps_list))
             
-            # Добавляем упражнение
+            # Добавляем упражнение (сохраняем исходную строку)
             program_data["days"][current_day_index]["exercises"].append({
-                "name": formatted_name,
+                "name": formatted_name,  # Для внутреннего использования
+                "original_format": line,  # Исходный формат для отображения
                 "reps": reps_list
             })
             
@@ -270,8 +272,10 @@ async def process_program_name(message: Message, state: FSMContext, session: Asy
         )
         
         for exercise_order, exercise_data in enumerate(day_data["exercises"]):
+            # Сохраняем исходный формат в name, если он есть, иначе используем formatted_name
+            exercise_name_to_save = exercise_data.get("original_format", exercise_data["name"])
             exercise = await crud.create_exercise(
-                session, workout_day.id, exercise_data["name"], exercise_order
+                session, workout_day.id, exercise_name_to_save, exercise_order
             )
             
             # Создаём подходы
