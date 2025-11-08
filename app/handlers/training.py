@@ -225,7 +225,7 @@ async def ask_for_weight(
     text += f"Подход {current_set['set_index']}: {current_set['reps']} раз\n\n"
     
     if last_weight:
-        text += f"📊 Ваш прошлый вес в этом подходе: {last_weight} кг\n"
+        text += f"📊 Прошлый вес: {last_weight} кг\n"
         if last_performed_set and last_performed_set.timestamp:
             from datetime import datetime
             # Форматируем дату последней тренировки
@@ -237,7 +237,9 @@ async def ask_for_weight(
     
     text += "Введите вес для этого подхода (в кг):"
     
-    await message.answer(text)
+    bot_message = await message.answer(text)
+    # Сохраняем ID сообщения для последующего удаления
+    await state.update_data(last_bot_message_id=bot_message.message_id)
 
 
 @router.message(TrainingStates.waiting_for_weight)
@@ -271,6 +273,15 @@ async def process_weight(message: Message, state: FSMContext, session: AsyncSess
             weight,
             session_run_id
         )
+        
+        # Удаляем предыдущее сообщение бота и сообщение пользователя
+        last_bot_msg_id = data.get("last_bot_message_id")
+        try:
+            if last_bot_msg_id:
+                await message.bot.delete_message(message.chat.id, last_bot_msg_id)
+            await message.delete()
+        except Exception:
+            pass  # Игнорируем ошибки удаления
         
         # Переходим к следующему подходу
         current_set_index += 1

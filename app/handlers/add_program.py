@@ -51,6 +51,12 @@ async def process_days_count(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора количества дней."""
     days_count = int(callback.data.split("_")[1])
     
+    # Удаляем сообщение с кнопками
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+    
     await state.update_data(
         days_count=days_count,
         current_day_index=0,
@@ -58,9 +64,10 @@ async def process_days_count(callback: CallbackQuery, state: FSMContext):
     )
     await state.set_state(AddProgramStates.waiting_for_day_name)
     
-    await callback.message.edit_text(
+    bot_message = await callback.message.answer(
         f"Введите название для дня 1 (например: Спина, Грудь, Ноги):"
     )
+    await state.update_data(last_bot_message_id=bot_message.message_id)
     await callback.answer()
 
 
@@ -73,7 +80,16 @@ async def process_day_name(message: Message, state: FSMContext):
         await message.answer("Пожалуйста, введите название дня.")
         return
     
+    # Удаляем предыдущее сообщение бота и сообщение пользователя
     data = await state.get_data()
+    last_bot_msg_id = data.get("last_bot_message_id")
+    try:
+        if last_bot_msg_id:
+            await message.bot.delete_message(message.chat.id, last_bot_msg_id)
+        await message.delete()
+    except Exception:
+        pass  # Игнорируем ошибки удаления
+    
     current_day_index = data.get("current_day_index", 0)
     days_count = data.get("days_count", 0)
     program_data = data.get("program_data", {"days": []})
@@ -87,9 +103,7 @@ async def process_day_name(message: Message, state: FSMContext):
     await state.update_data(program_data=program_data)
     await state.set_state(AddProgramStates.waiting_for_exercise)
     
-    from app.utils.keyboards import get_finish_day_keyboard
-    
-    await message.answer(
+    bot_message = await message.answer(
         f"День «{day_name}» добавлен.\n\n"
         f"Теперь добавьте упражнения для этого дня.\n"
         f"Формат: название упражнения — подходы\n\n"
@@ -101,15 +115,23 @@ async def process_day_name(message: Message, state: FSMContext):
         f"Хаммер верхний — 16-10-12\n"
         f"Хаммер горизонт — 16-10-12\n"
         f"Тяга рейдера — 20-12-15\n\n"
-        f"Когда закончите, нажмите кнопку «✅ Завершить день»",
-        reply_markup=get_finish_day_keyboard()
+        f"Когда закончите, нажмите кнопку «✅ Завершить день»"
     )
+    
+    # Сохраняем ID сообщения для последующего удаления
+    await state.update_data(last_bot_message_id=bot_message.message_id)
 
 
 @router.callback_query(F.data == "finish_day")
 async def finish_day_callback(callback: CallbackQuery, state: FSMContext):
     """Завершение добавления упражнений для дня через кнопку."""
     await callback.answer()
+    
+    # Удаляем сообщение с кнопкой
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
     
     data = await state.get_data()
     current_day_index = data.get("current_day_index", 0)
@@ -121,16 +143,18 @@ async def finish_day_callback(callback: CallbackQuery, state: FSMContext):
     if current_day_index >= days_count:
         # Все дни добавлены, запрашиваем название программы
         await state.set_state(AddProgramStates.waiting_for_program_name)
-        await callback.message.edit_text(
+        bot_message = await callback.message.answer(
             "✅ Все дни добавлены!\n\nВведите название для программы:"
         )
+        await state.update_data(last_bot_message_id=bot_message.message_id)
     else:
         # Переходим к следующему дню
         await state.update_data(current_day_index=current_day_index)
         await state.set_state(AddProgramStates.waiting_for_day_name)
-        await callback.message.edit_text(
+        bot_message = await callback.message.answer(
             f"✅ День завершён!\n\nВведите название для дня {current_day_index + 1}:"
         )
+        await state.update_data(last_bot_message_id=bot_message.message_id)
 
 
 @router.message(AddProgramStates.waiting_for_exercise, F.text == "/done")
@@ -242,9 +266,19 @@ async def process_exercise(message: Message, state: FSMContext):
     
     from app.utils.keyboards import get_finish_day_keyboard
     
+    # Удаляем предыдущее сообщение бота и сообщение пользователя
+    last_bot_msg_id = data.get("last_bot_message_id")
+    try:
+        if last_bot_msg_id:
+            await message.bot.delete_message(message.chat.id, last_bot_msg_id)
+        await message.delete()
+    except Exception:
+        pass  # Игнорируем ошибки удаления
+    
     response_parts.append("\n💡 Продолжайте добавлять упражнения или нажмите «✅ Завершить день».")
     
-    await message.answer("\n".join(response_parts), reply_markup=get_finish_day_keyboard())
+    bot_message = await message.answer("\n".join(response_parts), reply_markup=get_finish_day_keyboard())
+    await state.update_data(last_bot_message_id=bot_message.message_id)
 
 
 @router.message(AddProgramStates.waiting_for_program_name)
@@ -255,6 +289,16 @@ async def process_program_name(message: Message, state: FSMContext, session: Asy
     if not program_name:
         await message.answer("Пожалуйста, введите название программы.")
         return
+    
+    # Удаляем предыдущее сообщение бота и сообщение пользователя
+    data = await state.get_data()
+    last_bot_msg_id = data.get("last_bot_message_id")
+    try:
+        if last_bot_msg_id:
+            await message.bot.delete_message(message.chat.id, last_bot_msg_id)
+        await message.delete()
+    except Exception:
+        pass
     
     data = await state.get_data()
     program_data = data.get("program_data", {"days": []})
