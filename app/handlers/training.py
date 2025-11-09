@@ -188,6 +188,7 @@ async def begin_training(callback: CallbackQuery, state: FSMContext, session: As
     
     await state.update_data(
         current_session_run_id=session_run.id,
+        current_user_id=user.id,  # Сохраняем user_id для использования в поиске
         current_exercise_index=0,
         current_set_index=0
     )
@@ -233,34 +234,39 @@ async def ask_for_weight(
     logger.info(f"Asking for weight: exercise_id={exercise['exercise_id']}, current_set_index={current_set_index}, set_index={current_set['set_index']}, reps={current_set['reps']}, total_sets={len(sets)}")
     
     # Получаем прошлый вес (если есть)
-    # Ищем по названию упражнения, чтобы найти прошлые результаты даже из других программ
-    user = await crud.get_or_create_user(session, message.from_user.id)
+    # Используем user_id из состояния (из SessionRun), чтобы избежать проблем с разными user_id
+    user_id = data.get("current_user_id")
+    if not user_id:
+        # Если user_id не сохранен в состоянии, получаем пользователя
+        user = await crud.get_or_create_user(session, message.from_user.id)
+        user_id = user.id
+        await state.update_data(current_user_id=user_id)
     
-    logger.info(f"Searching for previous weight: user_id={user.id}, exercise_id={exercise['exercise_id']}, set_index={current_set['set_index']}, exercise_name='{exercise['name']}'")
+    logger.info(f"Searching for previous weight: user_id={user_id}, exercise_id={exercise['exercise_id']}, set_index={current_set['set_index']}, exercise_name='{exercise['name']}'")
     
     # Сначала пытаемся найти по exercise_id (для той же программы)
     last_weight = await crud.get_last_weight_for_set(
-        session, user.id, exercise["exercise_id"], current_set["set_index"]
+        session, user_id, exercise["exercise_id"], current_set["set_index"]
     )
     logger.info(f"Searching for last weight by exercise_id: found={last_weight is not None}, weight={last_weight}")
     
     # Если не нашли, ищем по названию упражнения (для других программ)
     if not last_weight:
         last_weight = await crud.get_last_weight_for_exercise_by_name(
-            session, user.id, exercise["name"], current_set["set_index"]
+            session, user_id, exercise["name"], current_set["set_index"]
         )
         logger.info(f"Searching for last weight by name: found={last_weight is not None}, weight={last_weight}, exercise_name='{exercise['name']}'")
     
     # Получаем информацию о прошлой тренировке для контекста
     last_performed_set = await crud.get_last_performed_set_for_exercise(
-        session, user.id, exercise["exercise_id"], current_set["set_index"]
+        session, user_id, exercise["exercise_id"], current_set["set_index"]
     )
     logger.info(f"Searching for last performed set by exercise_id: found={last_performed_set is not None}")
     
     # Если не нашли по ID, ищем по названию
     if not last_performed_set:
         last_performed_set = await crud.get_last_performed_set_for_exercise_by_name(
-            session, user.id, exercise["name"], current_set["set_index"]
+            session, user_id, exercise["name"], current_set["set_index"]
         )
         logger.info(f"Searching for last performed set by name: found={last_performed_set is not None}, exercise_name='{exercise['name']}'")
     
