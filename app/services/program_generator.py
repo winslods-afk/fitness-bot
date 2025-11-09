@@ -3,6 +3,88 @@ import re
 from typing import Optional, Dict, List, Tuple
 
 
+def _is_day_header(line: str) -> Optional[str]:
+    """
+    Определяет, является ли строка заголовком дня тренировки.
+    Возвращает название дня или None.
+    
+    Распознаёт:
+    - День 1, День 2, ДЕНЬ 1
+    - Понедельник, Вторник, Среда, Четверг, Пятница, Суббота, Воскресенье
+    - День ног, День спины, День груди и т.д.
+    - Пятница/Понедельник и т.д. (без слова "день")
+    """
+    line = line.strip()
+    if not line:
+        return None
+    
+    # Дни недели (полные названия)
+    weekdays = {
+        'понедельник': 'Понедельник',
+        'вторник': 'Вторник',
+        'среда': 'Среда',
+        'четверг': 'Четверг',
+        'пятница': 'Пятница',
+        'суббота': 'Суббота',
+        'воскресенье': 'Воскресенье',
+        'пн': 'Понедельник',
+        'вт': 'Вторник',
+        'ср': 'Среда',
+        'чт': 'Четверг',
+        'пт': 'Пятница',
+        'сб': 'Суббота',
+        'вс': 'Воскресенье'
+    }
+    
+    line_lower = line.lower()
+    
+    # Проверяем дни недели
+    for key, value in weekdays.items():
+        if line_lower.startswith(key) or line_lower == key:
+            # Извлекаем название после дня недели (если есть)
+            parts = line.split(':', 1)
+            if len(parts) > 1:
+                return f"{value}: {parts[1].strip()}"
+            parts = line.split('/', 1)
+            if len(parts) > 1:
+                return f"{value}: {parts[1].strip()}"
+            return value
+    
+    # День с номером: "День 1", "День 2", "ДЕНЬ 1: Название"
+    day_num_match = re.match(r'день\s+(\d+)[:\-/\s]*(.+)', line, re.IGNORECASE)
+    if day_num_match:
+        day_name = day_num_match.group(2).strip()
+        if day_name:
+            return day_name
+        return f"День {day_num_match.group(1)}"
+    
+    # День с названием группы мышц: "День ног", "День спины", "День груди"
+    day_muscle_match = re.match(r'день\s+(ног|спины|груди|рук|плеч|бицепса|трицепса|пресса|кардио)', line, re.IGNORECASE)
+    if day_muscle_match:
+        muscle = day_muscle_match.group(1)
+        # Извлекаем полное название, если есть после двоеточия или слэша
+        parts = line.split(':', 1)
+        if len(parts) > 1:
+            return f"День {muscle}: {parts[1].strip()}"
+        parts = line.split('/', 1)
+        if len(parts) > 1:
+            return f"День {muscle}: {parts[1].strip()}"
+        return f"День {muscle}"
+    
+    # Просто название группы мышц в начале строки: "Ноги", "Спина", "Грудь"
+    muscle_groups = ['ноги', 'спина', 'грудь', 'руки', 'плечи', 'бицепс', 'трицепс', 'пресс', 'кардио']
+    for muscle in muscle_groups:
+        if line_lower.startswith(muscle) and len(line) < 50:  # Короткая строка, вероятно заголовок
+            # Проверяем, что это не упражнение (упражнения обычно длиннее и содержат подходы)
+            if not re.search(r'[—–-]\s*\d+', line):
+                parts = line.split(':', 1)
+                if len(parts) > 1:
+                    return parts[1].strip() if parts[1].strip() else parts[0].strip()
+                return line.strip()
+    
+    return None
+
+
 def parse_ai_program_response(ai_response: str) -> Optional[Dict]:
     """
     Парсит ответ AI с программой тренировок.
@@ -36,14 +118,13 @@ def parse_ai_program_response(ai_response: str) -> Optional[Dict]:
             program_name = line.split(":", 1)[1].strip()
             continue
         
-        # Парсим день
-        day_match = re.match(r'ДЕНЬ\s+(\d+):\s*(.+)', line, re.IGNORECASE)
-        if day_match:
+        # Проверяем, является ли строка заголовком дня
+        day_name = _is_day_header(line)
+        if day_name:
             # Сохраняем предыдущий день, если есть
             if current_day:
                 days.append(current_day)
             
-            day_name = day_match.group(2).strip()
             current_day = {
                 "name": day_name,
                 "exercises": []
@@ -77,45 +158,64 @@ def parse_ai_program_response(ai_response: str) -> Optional[Dict]:
 
 
 def _parse_free_format(text: str) -> Optional[Dict]:
-    """Парсит программу из свободного формата."""
+    """
+    Парсит программу из свободного формата.
+    Улучшенная версия, которая распознаёт различные варианты дней.
+    """
     # Ищем паттерны типа "Программа: ..." или "Название: ..."
     program_match = re.search(r'(?:Программа|Название)[:\-]\s*(.+)', text, re.IGNORECASE)
-    program_name = program_match.group(1).strip() if program_match else "Программа от AI"
+    program_name = program_match.group(1).strip() if program_match else "Программа от пользователя"
     
-    # Ищем дни по паттернам "День 1", "День 2" или просто списки упражнений
+    lines = text.strip().split('\n')
     days = []
+    current_day = None
     
-    # Разбиваем на блоки по дням
-    day_patterns = [
-        r'День\s+(\d+)[:\-]\s*(.+?)(?=День\s+\d+|$)',
-        r'День\s+(\d+)\s+(.+?)(?=День\s+\d+|$)',
-    ]
-    
-    for pattern in day_patterns:
-        day_matches = re.finditer(pattern, text, re.IGNORECASE | re.DOTALL)
-        for match in day_matches:
-            day_name = match.group(2).strip().split('\n')[0]  # Первая строка - название дня
-            day_content = match.group(2)
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        
+        # Проверяем, является ли строка заголовком дня
+        day_name = _is_day_header(line)
+        if day_name:
+            # Сохраняем предыдущий день, если есть
+            if current_day and current_day["exercises"]:
+                days.append(current_day)
             
-            exercises = []
-            for line in day_content.split('\n'):
-                line = line.strip()
-                if not line:
-                    continue
+            current_day = {
+                "name": day_name,
+                "exercises": []
+            }
+            continue
+        
+        # Если есть текущий день, проверяем, является ли строка упражнением
+        if current_day:
+            # Проверяем, что это упражнение (содержит подходы)
+            if ("—" in line or "-" in line or "х" in line.lower() or "x" in line.lower() or 
+                re.search(r'\d+\s+подход', line, re.IGNORECASE)):
+                # Убираем нумерацию, если есть
+                exercise_line = re.sub(r'^[\d•\-\*]\s*', '', line).strip()
                 
-                # Проверяем, что это упражнение
-                if ("—" in line or "-" in line or "х" in line.lower() or "x" in line.lower() or 
-                    re.search(r'\d+\s+подход', line, re.IGNORECASE)):
-                    # Убираем нумерацию
+                # Проверяем, что это действительно упражнение (содержит паттерн подходов)
+                if re.search(r'\d+[xх\-]', exercise_line) or re.search(r'\d+\s+подход', exercise_line, re.IGNORECASE):
+                    if exercise_line and len(exercise_line) > 3:
+                        current_day["exercises"].append(exercise_line)
+        else:
+            # Если нет текущего дня, но строка похожа на упражнение,
+            # создаём новый день с названием по умолчанию
+            if ("—" in line or "-" in line or "х" in line.lower() or "x" in line.lower() or 
+                re.search(r'\d+\s+подход', line, re.IGNORECASE)):
+                if re.search(r'\d+[xх\-]', line) or re.search(r'\d+\s+подход', line, re.IGNORECASE):
                     exercise_line = re.sub(r'^[\d•\-\*]\s*', '', line).strip()
                     if exercise_line and len(exercise_line) > 3:
-                        exercises.append(exercise_line)
-            
-            if exercises:
-                days.append({
-                    "name": day_name if day_name else f"День {len(days) + 1}",
-                    "exercises": exercises
-                })
+                        current_day = {
+                            "name": f"День {len(days) + 1}",
+                            "exercises": [exercise_line]
+                        }
+    
+    # Добавляем последний день
+    if current_day and current_day["exercises"]:
+        days.append(current_day)
     
     # Если не нашли структурированные дни, пытаемся извлечь упражнения
     if not days:
@@ -124,9 +224,10 @@ def _parse_free_format(text: str) -> Optional[Dict]:
             line = line.strip()
             if ("—" in line or "-" in line or "х" in line.lower() or "x" in line.lower() or 
                 re.search(r'\d+\s+подход', line, re.IGNORECASE)):
-                exercise_line = re.sub(r'^[\d•\-\*]\s*', '', line).strip()
-                if exercise_line and len(exercise_line) > 3:
-                    all_exercises.append(exercise_line)
+                if re.search(r'\d+[xх\-]', line) or re.search(r'\d+\s+подход', line, re.IGNORECASE):
+                    exercise_line = re.sub(r'^[\d•\-\*]\s*', '', line).strip()
+                    if exercise_line and len(exercise_line) > 3:
+                        all_exercises.append(exercise_line)
         
         if all_exercises:
             # Создаём один день со всеми упражнениями
@@ -174,7 +275,7 @@ def is_program_text(text: str) -> bool:
     Определяет, является ли текст программой тренировок.
     
     Проверяет наличие:
-    - Дней (День 1, День 2, ДЕНЬ 1 и т.д.)
+    - Дней (День 1, День 2, Понедельник, Пятница, День ног и т.д.)
     - Упражнений с подходами (формат "Название — 12-10-8" или "Название — 4х10")
     """
     if not text or len(text.strip()) < 20:
@@ -182,8 +283,12 @@ def is_program_text(text: str) -> bool:
     
     text_lower = text.lower()
     
-    # Проверяем наличие дней
-    has_days = bool(re.search(r'день\s+\d+', text_lower))
+    # Проверяем наличие дней (расширенный список паттернов)
+    has_days = bool(
+        re.search(r'день\s+\d+', text_lower) or  # День 1, День 2
+        re.search(r'день\s+(ног|спины|груди|рук|плеч)', text_lower) or  # День ног, День спины
+        re.search(r'\b(понедельник|вторник|среда|четверг|пятница|суббота|воскресенье|пн|вт|ср|чт|пт|сб|вс)\b', text_lower)  # Дни недели
+    )
     
     # Проверяем наличие упражнений с подходами
     # Паттерны: "— 12-10-8", "— 4х10", "- 4x10", "— 4 подхода"
