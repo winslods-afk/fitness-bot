@@ -117,9 +117,9 @@ railway volume list
 
 ### Подробные инструкции:
 
-- [CREATE_VOLUME_STEPS.md](../CREATE_VOLUME_STEPS.md) - пошаговая инструкция
-- [RAILWAY_PERSISTENT_STORAGE.md](../RAILWAY_PERSISTENT_STORAGE.md) - подробное руководство
-- [VERIFY_VOLUME.md](../VERIFY_VOLUME.md) - проверка работы volume
+- [CREATE_VOLUME_STEPS.md](CREATE_VOLUME_STEPS.md) - пошаговая инструкция
+- [RAILWAY_PERSISTENT_STORAGE.md](RAILWAY_PERSISTENT_STORAGE.md) - подробное руководство
+- [VERIFY_VOLUME.md](VERIFY_VOLUME.md) - проверка работы volume
 
 **После настройки volume:**
 - ✅ База данных сохраняется между деплоями
@@ -150,7 +150,7 @@ railway volume list
 - ⚠️ **Обязательно настройте Volume!** См. раздел "Настройка персистентного хранилища" выше
 - Без volume данные будут теряться при каждом деплое
 - После настройки volume данные сохраняются между деплоями
-- Для проверки см. [VERIFY_VOLUME.md](../VERIFY_VOLUME.md)
+- Для проверки см. [VERIFY_VOLUME.md](VERIFY_VOLUME.md)
 
 ---
 
