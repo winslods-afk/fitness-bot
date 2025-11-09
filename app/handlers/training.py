@@ -91,11 +91,25 @@ async def show_workout_days(message_or_callback, session: AsyncSession, session_
 @router.callback_query(F.data.startswith("select_day_"))
 async def select_training_day(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
     """Выбор дня для тренировки."""
+    # Проверяем, находимся ли мы в режиме тренировки
+    current_state = await state.get_state()
+    if current_state not in [TrainingStates.waiting_for_day.state, TrainingStates.waiting_for_program.state, None]:
+        # Если это не состояние тренировки, пропускаем (пусть обрабатывает stats)
+        await callback.answer()
+        return
+    
     day_id = int(callback.data.split("_")[-1])
     await callback.answer()
     
     data = await state.get_data()
     session_id = data.get("selected_session_id")
+    
+    # Если session_id не установлен, пытаемся получить из workout_day
+    if not session_id:
+        workout_day = await crud.get_workout_day_by_id(session, day_id)
+        if workout_day:
+            session_id = workout_day.session_id
+            await state.update_data(selected_session_id=session_id)
     
     # Получаем день с упражнениями
     workout_day = await crud.get_workout_day_by_id(session, day_id)
