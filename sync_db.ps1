@@ -26,15 +26,15 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host "OK: Project is linked to Railway" -ForegroundColor Green
 
+# Get list of services
+Write-Host "Getting list of services..." -ForegroundColor Cyan
+$servicesOutput = railway service 2>&1
+Write-Host "Services: $servicesOutput" -ForegroundColor Gray
+
 # Download database
 Write-Host "Downloading database from Railway..." -ForegroundColor Cyan
 
 try {
-    # List possible database locations
-    Write-Host "Searching for database file..." -ForegroundColor Yellow
-    $findResult = railway run find /app -name "*.db" -type f 2>&1
-    Write-Host "Found files: $findResult" -ForegroundColor Gray
-    
     # Try different possible paths
     $possiblePaths = @(
         "fitness_bot.db",
@@ -47,12 +47,32 @@ try {
     $success = $false
     foreach ($path in $possiblePaths) {
         Write-Host "Trying: $path" -ForegroundColor Yellow
+        
+        # Try without service specification first
         railway run cat $path *> $LOCAL_DB_PATH 2>&1
         
-        if ($LASTEXITCODE -eq 0 -and (Test-Path $LOCAL_DB_PATH) -and (Get-Item $LOCAL_DB_PATH).Length -gt 0) {
-            Write-Host "Success! Database found at: $path" -ForegroundColor Green
-            $success = $true
-            break
+        # If that fails, try with service name (if we can detect it)
+        if ($LASTEXITCODE -ne 0) {
+            # Try to get service name from railway service output
+            if ($servicesOutput -match "(\S+)") {
+                $serviceName = $matches[1]
+                Write-Host "Trying with service: $serviceName" -ForegroundColor Gray
+                railway run --service $serviceName cat $path *> $LOCAL_DB_PATH 2>&1
+            }
+        }
+        
+        if ($LASTEXITCODE -eq 0 -and (Test-Path $LOCAL_DB_PATH)) {
+            $fileSize = (Get-Item $LOCAL_DB_PATH).Length
+            if ($fileSize -gt 0) {
+                Write-Host "Success! Database found at: $path" -ForegroundColor Green
+                Write-Host "File size: $fileSize bytes" -ForegroundColor Green
+                $success = $true
+                break
+            } else {
+                if (Test-Path $LOCAL_DB_PATH) {
+                    Remove-Item $LOCAL_DB_PATH -Force
+                }
+            }
         } else {
             if (Test-Path $LOCAL_DB_PATH) {
                 Remove-Item $LOCAL_DB_PATH -Force
@@ -61,6 +81,11 @@ try {
     }
     
     if (-not $success) {
+        Write-Host ""
+        Write-Host "Troubleshooting:" -ForegroundColor Yellow
+        Write-Host "1. Check if database exists: railway run ls -la" -ForegroundColor Cyan
+        Write-Host "2. List services: railway service" -ForegroundColor Cyan
+        Write-Host "3. Try manual download: railway run cat /app/data/fitness_bot.db > fitness_bot_remote.db" -ForegroundColor Cyan
         throw "Failed to download database. Check the paths above."
     }
     
