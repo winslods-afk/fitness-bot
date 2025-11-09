@@ -2,6 +2,7 @@
 *.db
 *.sqlite
 *.sqlite3
+fitness_bot_remote.db
 __pycache__/
 *.py[cod]
 *$py.class
