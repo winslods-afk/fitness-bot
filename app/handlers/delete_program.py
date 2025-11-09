@@ -19,7 +19,8 @@ router = Router()
 @router.message(F.text == "Удалить программу")
 async def start_delete_program(message: Message, session: AsyncSession):
     """Начало процесса удаления программы."""
-    user = await crud.get_or_create_user(session, message.from_user.id)
+    username = message.from_user.username
+    user = await crud.get_or_create_user(session, message.from_user.id, username=username)
     programs = await crud.get_user_sessions(session, user.id)
     
     if not programs:

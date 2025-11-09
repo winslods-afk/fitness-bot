@@ -32,7 +32,8 @@ async def cmd_view_stats(message: Message, state: FSMContext, session: AsyncSess
     # Очищаем предыдущее состояние и данные, чтобы не было конфликтов
     await state.clear()
     
-    user = await crud.get_or_create_user(session, message.from_user.id)
+    username = message.from_user.username
+    user = await crud.get_or_create_user(session, message.from_user.id, username=username)
     programs = await crud.get_user_sessions(session, user.id)
     
     if not programs:
@@ -163,7 +164,8 @@ async def show_exercise_stats(callback: CallbackQuery, state: FSMContext, sessio
         return
     
     data = await state.get_data()
-    user = await crud.get_or_create_user(session, callback.from_user.id)
+    username = callback.from_user.username
+    user = await crud.get_or_create_user(session, callback.from_user.id, username=username)
     
     # Получаем статистику
     stats = await crud.get_exercise_statistics(session, user.id, exercise_id)

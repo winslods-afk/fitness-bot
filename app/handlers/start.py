@@ -56,8 +56,9 @@ async def cmd_start(message: Message, state: FSMContext, session: AsyncSession):
     """Обработчик команды /start."""
     await state.clear()
     
-    # Создаём или получаем пользователя
-    user = await crud.get_or_create_user(session, message.from_user.id)
+    # Создаём или получаем пользователя (сохраняем username)
+    username = message.from_user.username
+    user = await crud.get_or_create_user(session, message.from_user.id, username=username)
     
     await message.answer(
         get_welcome_message(),
@@ -88,7 +89,8 @@ async def cmd_help(message: Message):
 @router.message(F.text == "/myprograms")
 async def cmd_myprograms(message: Message, session: AsyncSession):
     """Обработчик команды /myprograms."""
-    user = await crud.get_or_create_user(session, message.from_user.id)
+    username = message.from_user.username
+    user = await crud.get_or_create_user(session, message.from_user.id, username=username)
     programs = await crud.get_user_sessions(session, user.id)
     
     if not programs:

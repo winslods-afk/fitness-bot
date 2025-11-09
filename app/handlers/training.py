@@ -33,7 +33,8 @@ class TrainingStates(StatesGroup):
 @router.message(F.text == "Начать тренировку")
 async def start_training(message: Message, state: FSMContext, session: AsyncSession):
     """Начало процесса тренировки."""
-    user = await crud.get_or_create_user(session, message.from_user.id)
+    username = message.from_user.username
+    user = await crud.get_or_create_user(session, message.from_user.id, username=username)
     programs = await crud.get_user_sessions(session, user.id)
     
     if not programs:
@@ -183,7 +184,8 @@ async def begin_training(callback: CallbackQuery, state: FSMContext, session: As
         return
     
     # Создаём запись о запуске тренировки
-    user = await crud.get_or_create_user(session, callback.from_user.id)
+    username = callback.from_user.username
+    user = await crud.get_or_create_user(session, callback.from_user.id, username=username)
     session_run = await crud.create_session_run(session, user.id, session_id)
     
     await state.update_data(
@@ -238,7 +240,8 @@ async def ask_for_weight(
     user_id = data.get("current_user_id")
     if not user_id:
         # Если user_id не сохранен в состоянии, получаем пользователя
-        user = await crud.get_or_create_user(session, message.from_user.id)
+        username = message.from_user.username
+        user = await crud.get_or_create_user(session, message.from_user.id, username=username)
         user_id = user.id
         await state.update_data(current_user_id=user_id)
     
@@ -392,7 +395,8 @@ async def finish_training(message: Message, session: AsyncSession, state: FSMCon
         program_name = session_run.session.name
     
     # Получаем статистику сравнения
-    user = await crud.get_or_create_user(session, message.from_user.id)
+    username = message.from_user.username
+    user = await crud.get_or_create_user(session, message.from_user.id, username=username)
     stats = await get_comparison_stats(session, user.id, performed_sets)
     
     # Показываем сообщение о завершении тренировки

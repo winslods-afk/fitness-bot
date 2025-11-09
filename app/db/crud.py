@@ -11,17 +11,33 @@ from app.db.models import (
 
 
 # ========== User ==========
-async def get_or_create_user(session: AsyncSession, telegram_id: int) -> User:
-    """Получить или создать пользователя."""
+async def get_or_create_user(session: AsyncSession, telegram_id: int, username: Optional[str] = None) -> User:
+    """Получить или создать пользователя.
+    
+    Args:
+        session: Сессия базы данных
+        telegram_id: Telegram ID пользователя
+        username: Telegram username (опционально, может быть None)
+    
+    Returns:
+        User: Пользователь (существующий или созданный)
+    """
     result = await session.execute(
         select(User).where(User.telegram_id == telegram_id)
     )
     user = result.scalar_one_or_none()
     if not user:
-        user = User(telegram_id=telegram_id)
+        # Создаем нового пользователя
+        user = User(telegram_id=telegram_id, username=username)
         session.add(user)
         await session.commit()
         await session.refresh(user)
+    else:
+        # Обновляем username, если он изменился (username может меняться)
+        if user.username != username:
+            user.username = username
+            await session.commit()
+            await session.refresh(user)
     return user
 
 

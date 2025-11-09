@@ -33,7 +33,8 @@ class AddProgramStates(StatesGroup):
 @router.message(F.text == "Добавить программу")
 async def start_add_program(message: Message, state: FSMContext, session: AsyncSession):
     """Начало процесса добавления программы."""
-    user = await crud.get_or_create_user(session, message.from_user.id)
+    username = message.from_user.username
+    user = await crud.get_or_create_user(session, message.from_user.id, username=username)
     
     # Проверяем лимит программ
     programs_count = await crud.count_user_sessions(session, user.id)
@@ -54,7 +55,8 @@ async def start_add_program(message: Message, state: FSMContext, session: AsyncS
 @router.callback_query(F.data == "add_manual")
 async def add_program_manual(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
     """Добавление программы по дням (ручной ввод)."""
-    user = await crud.get_or_create_user(session, callback.from_user.id)
+    username = callback.from_user.username
+    user = await crud.get_or_create_user(session, callback.from_user.id, username=username)
     
     # Проверяем лимит программ
     programs_count = await crud.count_user_sessions(session, user.id)
@@ -364,7 +366,8 @@ async def process_program_name(message: Message, state: FSMContext, session: Asy
     program_data = data.get("program_data", {"days": []})
     
     # Получаем пользователя
-    user = await crud.get_or_create_user(session, message.from_user.id)
+    username = message.from_user.username
+    user = await crud.get_or_create_user(session, message.from_user.id, username=username)
     
     # Создаём программу
     session_obj = await crud.create_session(session, user.id, program_name)

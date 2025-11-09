@@ -207,7 +207,8 @@ async def save_ai_program(callback: CallbackQuery, state: FSMContext, session: A
     
     try:
         # Получаем пользователя
-        user = await crud.get_or_create_user(session, callback.from_user.id)
+        username = callback.from_user.username
+        user = await crud.get_or_create_user(session, callback.from_user.id, username=username)
         
         # Создаём программу
         session_obj = await crud.create_session(session, user.id, program_data["name"])

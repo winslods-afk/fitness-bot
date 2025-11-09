@@ -15,6 +15,7 @@ class User(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     telegram_id = Column(Integer, unique=True, index=True, nullable=False)
+    username = Column(String, nullable=True, index=True)  # Telegram username (может быть None)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
