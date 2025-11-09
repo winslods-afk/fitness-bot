@@ -194,6 +194,8 @@ async def begin_training(callback: CallbackQuery, state: FSMContext, session: As
     await state.set_state(TrainingStates.waiting_for_weight)
     
     # Начинаем с первого упражнения и первого подхода
+    # Обновляем data из состояния, чтобы получить актуальные значения
+    data = await state.get_data()
     await ask_for_weight(callback.message, session, state, data)
 
 
@@ -296,6 +298,11 @@ async def process_weight(message: Message, state: FSMContext, session: AsyncSess
         exercise = exercises[current_exercise_index]
         current_set = exercise["sets"][current_set_index]
         
+        # Логируем для отладки
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Saving performed set: exercise_id={exercise['exercise_id']}, set_index={current_set['set_index']}, weight={weight}, session_run_id={session_run_id}")
+        
         # Сохраняем выполненный подход
         await crud.create_performed_set(
             session,
@@ -304,6 +311,8 @@ async def process_weight(message: Message, state: FSMContext, session: AsyncSess
             weight,
             session_run_id
         )
+        
+        logger.info(f"Performed set saved successfully")
         
         # Удаляем предыдущее сообщение бота и сообщение пользователя
         last_bot_msg_id = data.get("last_bot_message_id")
