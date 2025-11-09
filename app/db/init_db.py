@@ -27,7 +27,15 @@ async def init_db():
     import os
     
     logger.info("Инициализация базы данных...")
-    logger.info(f"DATABASE_URL (raw): {DATABASE_URL}")
+    # Логируем DATABASE_URL (маскируем пароль)
+    if DATABASE_URL:
+        if "@" in DATABASE_URL:
+            safe_url = DATABASE_URL.split("@")[0] + "@***"
+        else:
+            safe_url = DATABASE_URL
+        logger.info(f"DATABASE_URL: {safe_url}")
+    else:
+        logger.warning("⚠️ DATABASE_URL is None!")
     logger.info(f"DB_PATH: {DB_PATH}")
     
     # Определяем тип базы данных по DATABASE_URL

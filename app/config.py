@@ -35,7 +35,29 @@ logger.info("DATABASE CONFIGURATION")
 logger.info("=" * 60)
 logger.info(f"Railway environment detected: {IS_RAILWAY}")
 logger.info(f"Data volume exists: {HAS_DATA_VOLUME}")
-logger.info(f"DATABASE_URL provided: {DATABASE_URL is not None}")
+logger.info(f"DATABASE_URL from environment: {DATABASE_URL is not None}")
+if DATABASE_URL:
+    # Маскируем пароль
+    if "@" in DATABASE_URL:
+        safe_url = DATABASE_URL.split("@")[0] + "@***"
+    else:
+        safe_url = DATABASE_URL
+    logger.info(f"DATABASE_URL value: {safe_url}")
+    if "postgres" in DATABASE_URL.lower():
+        logger.info("✅ PostgreSQL detected in DATABASE_URL")
+    elif "sqlite" in DATABASE_URL.lower():
+        logger.warning("⚠️ SQLite detected in DATABASE_URL (unexpected in production)")
+else:
+    logger.warning("⚠️ DATABASE_URL not set! Will use SQLite fallback.")
+    if IS_RAILWAY:
+        logger.error(
+            "❌ PostgreSQL не настроен! Переменная DATABASE_URL не установлена.\n"
+            "💡 Чтобы использовать PostgreSQL:\n"
+            "   1. Добавьте PostgreSQL сервис в Railway: '+ New' -> 'Database' -> 'Add PostgreSQL'\n"
+            "   2. Убедитесь, что переменная DATABASE_URL установлена в сервисе бота\n"
+            "   3. Перезапустите сервис бота\n"
+            "📖 Инструкция: FIX_POSTGRESQL_CONNECTION.md"
+        )
 
 # Логируем все переменные Railway для отладки
 if IS_RAILWAY:
