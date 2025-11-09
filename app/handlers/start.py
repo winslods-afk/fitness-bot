@@ -13,7 +13,7 @@ from app.config import DB_PATH
 router = Router()
 
 # ID администраторов (замените на свой Telegram ID)
-ADMIN_IDS = [389624620]  # ID пользователя @dota_instructor
+ADMIN_IDS = []  # Добавьте сюда ваш Telegram ID, например: [123456789]
 
 # Username администраторов (без @)
 ADMIN_USERNAMES = ["dota_instructor"]  # Добавьте сюда username администраторов

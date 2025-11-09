@@ -7,7 +7,7 @@ from aiogram.enums import ParseMode
 
 from app.config import BOT_TOKEN
 from app.db.init_db import init_db, get_session
-from app.handlers import start, add_program, delete_program, training
+from app.handlers import start, add_program, delete_program, training, stats
 
 # Настройка логирования
 logging.basicConfig(
@@ -29,6 +29,7 @@ def setup_handlers(dp: Dispatcher):
     dp.include_router(start.router)
     dp.include_router(add_program.router)
     dp.include_router(delete_program.router)
+    dp.include_router(stats.router)
     dp.include_router(training.router)
     
     # AI обработчики

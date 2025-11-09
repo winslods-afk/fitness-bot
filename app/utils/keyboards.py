@@ -9,8 +9,9 @@ def get_main_keyboard() -> ReplyKeyboardMarkup:
         keyboard=[
             [KeyboardButton(text="Добавить программу")],
             [KeyboardButton(text="Удалить программу")],
-            [KeyboardButton(text="Перезапустить Бота")],
+            [KeyboardButton(text="Посмотреть статистику")],
             [KeyboardButton(text="Начать тренировку")],
+            [KeyboardButton(text="Перезапустить Бота")],
         ],
         resize_keyboard=True,
         persistent=True
@@ -85,5 +86,27 @@ def get_finish_day_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="✅ Завершить день", callback_data="finish_day")]
+        ]
+    )
+
+
+def get_exercises_keyboard(exercises: List, prefix: str = "stats") -> InlineKeyboardMarkup:
+    """Клавиатура для выбора упражнения."""
+    buttons = []
+    for exercise in exercises:
+        buttons.append([
+            InlineKeyboardButton(
+                text=exercise.name,
+                callback_data=f"{prefix}_exercise_{exercise.exercise_id}"
+            )
+        ])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def get_stats_back_keyboard(back_to: str, item_id: int) -> InlineKeyboardMarkup:
+    """Клавиатура с кнопкой 'Назад' для статистики."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="◀️ Назад", callback_data=f"stats_back_{back_to}_{item_id}")]
         ]
     )

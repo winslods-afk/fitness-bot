@@ -66,10 +66,9 @@ async def get_ai_response(user_message: str, user_context: Optional[str] = None)
         else:
             return None
     except Exception as e:
-        # Логируем ошибку с подробностями
+        # Логируем ошибку, но не показываем пользователю
         import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"AI error ({AI_PROVIDER}): {str(e)}", exc_info=True)
+        logging.error(f"AI error: {str(e)}")
         return None
 
 

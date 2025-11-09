@@ -274,3 +274,42 @@ async def get_last_performed_set_for_exercise_by_name(
         .options(selectinload(PerformedSet.exercise))
     )
     return result.scalar_one_or_none()
+
+
+async def get_exercise_statistics(
+    session: AsyncSession, user_id: int, exercise_id: int
+) -> dict:
+    """
+    Получить статистику по упражнению.
+    Возвращает словарь: {set_index: [(timestamp, weight), ...]}
+    """
+    # Получаем все выполненные подходы для этого упражнения
+    result = await session.execute(
+        select(PerformedSet)
+        .join(SessionRun, PerformedSet.session_run_id == SessionRun.id)
+        .where(
+            SessionRun.user_id == user_id,
+            PerformedSet.exercise_id == exercise_id
+        )
+        .order_by(PerformedSet.set_index, PerformedSet.timestamp)
+    )
+    performed_sets = list(result.scalars().all())
+    
+    # Группируем по set_index
+    stats = {}
+    for ps in performed_sets:
+        if ps.set_index not in stats:
+            stats[ps.set_index] = []
+        stats[ps.set_index].append((ps.timestamp, ps.weight))
+    
+    return stats
+
+
+async def get_exercise_by_id(session: AsyncSession, exercise_id: int) -> Optional[Exercise]:
+    """Получить упражнение по ID."""
+    result = await session.execute(
+        select(Exercise)
+        .where(Exercise.exercise_id == exercise_id)
+        .options(selectinload(Exercise.sets))
+    )
+    return result.scalar_one_or_none()
