@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import os
 
 from app.db import crud
-from app.utils.keyboards import get_main_keyboard
+from app.utils.keyboards import get_main_keyboard, get_programs_menu_keyboard
 from app.utils.messages import get_welcome_message
 from app.config import DB_PATH
 
