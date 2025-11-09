@@ -302,23 +302,50 @@ def _parse_free_format(text: str) -> Optional[Dict]:
             # Проверяем, что это упражнение (содержит подходы)
             # Поддерживаем символ × (умножение), * (звездочка), длинное тире, х
             # Форматы: "3 подхода", "3 подхода 12 повторений", "3*10-12", "2х10", "3x10-12"
+            # Также строки, начинающиеся с дефиса и содержащие числа с подходами
+            line_clean_for_check = line.strip()
+            
+            # Проверяем различные паттерны упражнений
             exercise_patterns = [
-                r'\d+\s+подход',  # "3 подхода"
+                r'\d+\s+подход',  # "3 подхода" (может быть в любом месте строки)
                 r'\d+\s+подход.*\d+\s+повтор',  # "3 подхода 12 повторений"
+                r'\d+\s+подход.*\d+\s+повторений',  # "3 подхода 12 повторений" (полная форма)
                 r'\d+[*xх×]\d+',  # "3*10", "3x10", "3х10", "3×10"
                 r'\d+[*xх×]\d+[-–—]\d+',  # "3*10-12", "3x10-12"
                 r'\d+[-–—]\d+',  # "20-12-15" (список повторений)
-                r'^\s*[-–—]\s*',  # Строка начинается с дефиса (маркированный список)
+                r'по\s+одной\s+руке',  # "по одной руке" (дополнительная информация)
             ]
             
-            is_exercise = any(re.search(pattern, line, re.IGNORECASE) for pattern in exercise_patterns)
+            # Проверяем, начинается ли строка с дефиса (маркированный список)
+            starts_with_dash = line_clean_for_check.startswith('-') or line_clean_for_check.startswith('–') or line_clean_for_check.startswith('—')
+            
+            # Проверяем наличие паттернов подходов
+            has_exercise_pattern = any(re.search(pattern, line, re.IGNORECASE) for pattern in exercise_patterns)
+            
+            # Проверяем, содержит ли строка числа (признак упражнения с подходами)
+            has_numbers = bool(re.search(r'\d+', line_clean_for_check))
+            
+            # Упражнение, если:
+            # 1. Начинается с дефиса И (содержит паттерн подходов ИЛИ содержит числа и достаточно длинная)
+            # 2. ИЛИ содержит паттерн подходов и не является заголовком дня/группы мышц
+            # 3. ИЛИ начинается с дефиса, содержит числа и достаточно длинная (минимум 10 символов после дефиса)
+            is_exercise = False
+            if starts_with_dash:
+                if has_exercise_pattern:
+                    is_exercise = True
+                elif has_numbers and len(line_clean_for_check) > 10:
+                    # Строка начинается с дефиса, содержит числа и достаточно длинная - вероятно упражнение
+                    is_exercise = True
+            elif has_exercise_pattern and not is_muscle_group:
+                is_exercise = True
             
             if is_exercise:
                 # Убираем нумерацию и маркеры, если есть
                 exercise_line = re.sub(r'^[\d•\-\*]\s*', '', line).strip()
                 
-                # Убираем начальный дефис, если есть
-                exercise_line = re.sub(r'^\s*[-–—]\s+', '', exercise_line).strip()
+                # Убираем начальный дефис, если есть (включая пробелы после дефиса)
+                exercise_line = re.sub(r'^[-–—]\s+', '', exercise_line).strip()
+                exercise_line = re.sub(r'^[-–—]', '', exercise_line).strip()  # На случай, если нет пробела
                 
                 if exercise_line and len(exercise_line) > 3:
                     current_day["exercises"].append(exercise_line)
@@ -421,16 +448,39 @@ def is_program_text(text: str) -> bool:
     
     # Проверяем наличие упражнений с подходами
     # Паттерны: "— 12-10-8", "— 4х10", "- 4x10", "— 4×8–10", "— 4 подхода", "3 подхода 12 повторений", "3*10-12", "-упражнение 3 подхода"
-    has_exercises = bool(
-        re.search(r'[—–-]\s*\d+[xх×*\-–—]', text) or  # "— 12-10-8", "— 4х10"
-        re.search(r'[—–-]\s*\d+\s+подход', text_lower) or  # "— 4 подхода"
-        re.search(r'[—–-]\s*\d+[–—]\d+', text) or  # Диапазоны с длинным тире
-        re.search(r'[—–-]\s*\d+[xх×*]\d+[–—]\d+', text) or  # Формат "4×8–10"
-        re.search(r'^\s*[-–—]\s*.*\d+\s+подход', text, re.MULTILINE | re.IGNORECASE) or  # Строка начинается с дефиса и содержит "подход"
-        re.search(r'\d+\s+подход.*\d+\s+повтор', text_lower) or  # "3 подхода 12 повторений"
-        re.search(r'\d+[*xх×]\d+[-–—]?\d*', text) or  # "3*10-12", "3x10", "2х10"
-        re.search(r'^\s*[-–—]\s*.*\d+[*xх×]\d+', text, re.MULTILINE)  # Строка начинается с дефиса и содержит "3*10"
-    )
+    # Проверяем построчно для более точного распознавания
+    has_exercises = False
+    for line in text.split('\n'):
+        line_stripped = line.strip()
+        if not line_stripped:
+            continue
+        
+        # Проверяем различные форматы упражнений
+        line_lower = line_stripped.lower()
+        
+        # Паттерны для упражнений:
+        exercise_indicators = [
+            r'[-–—]\s*\d+\s+подход',  # "- 3 подхода" или "— 3 подхода"
+            r'[-–—][^\n]*\d+\s+подход',  # "-упражнение 3 подхода"
+            r'\d+\s+подход.*\d+\s+повтор',  # "3 подхода 12 повторений"
+            r'\d+\s+подход.*\d+\s+повторений',  # "3 подхода 12 повторений" (полная форма)
+            r'\d+[*xх×]\d+',  # "3*10", "3x10", "2х10"
+            r'\d+[*xх×]\d+[-–—]\d+',  # "3*10-12"
+            r'\d+[-–—]\d+',  # "20-12-15" (список повторений)
+        ]
+        
+        # Проверяем, начинается ли строка с дефиса (маркированный список упражнений)
+        starts_with_dash = line_stripped.startswith('-') or line_stripped.startswith('–') or line_stripped.startswith('—')
+        
+        # Если строка начинается с дефиса и содержит числа - вероятно упражнение
+        if starts_with_dash and re.search(r'\d', line_stripped):
+            has_exercises = True
+            break
+        
+        # Проверяем паттерны подходов
+        if any(re.search(pattern, line_stripped, re.IGNORECASE) for pattern in exercise_indicators):
+            has_exercises = True
+            break
     
     # Если есть и дни, и упражнения - это программа
     if has_days and has_exercises:
