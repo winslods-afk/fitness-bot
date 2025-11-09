@@ -7,7 +7,14 @@ def get_main_keyboard() -> ReplyKeyboardMarkup:
     """Главная клавиатура с основными опциями."""
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="Мои Программы тренировок")],
+            [
+                KeyboardButton(text="Добавить программу"),
+                KeyboardButton(text="Начать тренировку")
+            ],
+            [
+                KeyboardButton(text="Удалить программу"),
+                KeyboardButton(text="Посмотреть статистику")
+            ],
             [KeyboardButton(text="Перезапустить Бота")],
         ],
         resize_keyboard=True,
@@ -20,10 +27,14 @@ def get_programs_menu_keyboard() -> ReplyKeyboardMarkup:
     """Клавиатура подменю 'Мои Программы тренировок'."""
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="Добавить программу")],
-            [KeyboardButton(text="Удалить программу")],
-            [KeyboardButton(text="Посмотреть статистику")],
-            [KeyboardButton(text="Начать тренировку")],
+            [
+                KeyboardButton(text="Добавить программу"),
+                KeyboardButton(text="Начать тренировку")
+            ],
+            [
+                KeyboardButton(text="Удалить программу"),
+                KeyboardButton(text="Посмотреть статистику")
+            ],
             [KeyboardButton(text="◀️ Назад")],
         ],
         resize_keyboard=True,
@@ -46,34 +57,56 @@ def get_add_program_method_keyboard() -> InlineKeyboardMarkup:
 def get_days_count_keyboard() -> InlineKeyboardMarkup:
     """Клавиатура для выбора количества дней."""
     buttons = []
-    for i in range(1, 8):  # От 1 до 7 дней
-        buttons.append([InlineKeyboardButton(text=str(i), callback_data=f"days_{i}")])
+    # Группируем по 2 кнопки в ряду
+    for i in range(1, 8, 2):  # От 1 до 7 дней, шаг 2
+        row = [InlineKeyboardButton(text=str(i), callback_data=f"days_{i}")]
+        if i + 1 <= 7:
+            row.append(InlineKeyboardButton(text=str(i + 1), callback_data=f"days_{i + 1}"))
+        buttons.append(row)
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
 def get_programs_keyboard(programs: List, prefix: str = "select") -> InlineKeyboardMarkup:
     """Клавиатура для выбора программы."""
     buttons = []
-    for program in programs:
-        buttons.append([
+    # Группируем по 2 кнопки в ряду
+    for i in range(0, len(programs), 2):
+        row = [
             InlineKeyboardButton(
-                text=program.name,
-                callback_data=f"{prefix}_program_{program.session_id}"
+                text=programs[i].name,
+                callback_data=f"{prefix}_program_{programs[i].session_id}"
             )
-        ])
+        ]
+        if i + 1 < len(programs):
+            row.append(
+                InlineKeyboardButton(
+                    text=programs[i + 1].name,
+                    callback_data=f"{prefix}_program_{programs[i + 1].session_id}"
+                )
+            )
+        buttons.append(row)
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
 def get_workout_days_keyboard(days: List, prefix: str = "select_day") -> InlineKeyboardMarkup:
     """Клавиатура для выбора тренировочного дня."""
     buttons = []
-    for day in days:
-        buttons.append([
+    # Группируем по 2 кнопки в ряду
+    for i in range(0, len(days), 2):
+        row = [
             InlineKeyboardButton(
-                text=day.name,
-                callback_data=f"{prefix}_{day.id}"
+                text=days[i].name,
+                callback_data=f"{prefix}_{days[i].id}"
             )
-        ])
+        ]
+        if i + 1 < len(days):
+            row.append(
+                InlineKeyboardButton(
+                    text=days[i + 1].name,
+                    callback_data=f"{prefix}_{days[i + 1].id}"
+                )
+            )
+        buttons.append(row)
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
@@ -117,13 +150,22 @@ def get_finish_day_keyboard() -> InlineKeyboardMarkup:
 def get_exercises_keyboard(exercises: List, prefix: str = "stats", back_to: Optional[str] = None, back_item_id: Optional[int] = None) -> InlineKeyboardMarkup:
     """Клавиатура для выбора упражнения."""
     buttons = []
-    for exercise in exercises:
-        buttons.append([
+    # Группируем по 2 кнопки в ряду
+    for i in range(0, len(exercises), 2):
+        row = [
             InlineKeyboardButton(
-                text=exercise.name,
-                callback_data=f"{prefix}_exercise_{exercise.exercise_id}"
+                text=exercises[i].name,
+                callback_data=f"{prefix}_exercise_{exercises[i].exercise_id}"
             )
-        ])
+        ]
+        if i + 1 < len(exercises):
+            row.append(
+                InlineKeyboardButton(
+                    text=exercises[i + 1].name,
+                    callback_data=f"{prefix}_exercise_{exercises[i + 1].exercise_id}"
+                )
+            )
+        buttons.append(row)
     # Добавляем кнопку "Назад", если указаны параметры
     if back_to and back_item_id is not None:
         buttons.append([
