@@ -30,9 +30,35 @@ HAS_DATA_VOLUME = os.path.exists("/data") and os.path.isdir("/data")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Логирование конфигурации
+logger.info("=" * 60)
+logger.info("DATABASE CONFIGURATION")
+logger.info("=" * 60)
 logger.info(f"Railway environment detected: {IS_RAILWAY}")
 logger.info(f"Data volume exists: {HAS_DATA_VOLUME}")
 logger.info(f"DATABASE_URL provided: {DATABASE_URL is not None}")
+
+# Логируем все переменные Railway для отладки
+if IS_RAILWAY:
+    logger.info("Railway environment variables:")
+    for var in RAILWAY_ENV_VARS:
+        value = os.getenv(var)
+        if value:
+            logger.info(f"  {var} = {value}")
+    
+    # Проверяем директорию /data
+    if os.path.exists("/data"):
+        logger.info("Directory /data details:")
+        logger.info(f"  Path: /data")
+        logger.info(f"  Exists: {os.path.exists('/data')}")
+        logger.info(f"  Is directory: {os.path.isdir('/data')}")
+        logger.info(f"  Writable: {os.access('/data', os.W_OK)}")
+        try:
+            contents = os.listdir("/data")
+            logger.info(f"  Contents: {contents}")
+        except Exception as e:
+            logger.error(f"  Error listing /data: {e}")
+    else:
+        logger.warning("Directory /data does not exist!")
 
 # Инициализируем DB_PATH как None по умолчанию
 DB_PATH = None
