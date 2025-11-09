@@ -184,7 +184,7 @@ async def show_exercise_stats(callback: CallbackQuery, state: FSMContext, sessio
                     break
             
             reps = set_info.reps if set_info else "?"
-            text += f"<b>{set_index + 1} Подход, {reps} повторений</b>\n"
+            text += f"<b>{set_index} Подход, {reps} повторений</b>\n"
             
             # Показываем историю весов
             for timestamp, weight in stats[set_index]:
