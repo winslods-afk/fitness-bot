@@ -258,21 +258,29 @@ def _parse_free_format(text: str) -> Optional[Dict]:
         # Если есть текущий день, проверяем, является ли строка упражнением
         if current_day:
             # Проверяем, что это упражнение (содержит подходы)
-            if ("—" in line or "-" in line or "х" in line.lower() or "x" in line.lower() or 
+            # Поддерживаем символ × (умножение) и длинное тире
+            if ("—" in line or "-" in line or "–" in line or 
+                "х" in line.lower() or "x" in line.lower() or "×" in line or
                 re.search(r'\d+\s+подход', line, re.IGNORECASE)):
                 # Убираем нумерацию, если есть
                 exercise_line = re.sub(r'^[\d•\-\*]\s*', '', line).strip()
                 
                 # Проверяем, что это действительно упражнение (содержит паттерн подходов)
-                if re.search(r'\d+[xх\-]', exercise_line) or re.search(r'\d+\s+подход', exercise_line, re.IGNORECASE):
+                # Поддерживаем ×, x, х и длинное тире в диапазонах
+                if (re.search(r'\d+[xх×\-–—]', exercise_line) or 
+                    re.search(r'\d+\s+подход', exercise_line, re.IGNORECASE) or
+                    re.search(r'\d+[xх×]\d+[–—]\d+', exercise_line)):  # Формат "4×8–10"
                     if exercise_line and len(exercise_line) > 3:
                         current_day["exercises"].append(exercise_line)
         else:
             # Если нет текущего дня, но строка похожа на упражнение,
             # создаём новый день с названием по умолчанию
-            if ("—" in line or "-" in line or "х" in line.lower() or "x" in line.lower() or 
+            if ("—" in line or "-" in line or "–" in line or 
+                "х" in line.lower() or "x" in line.lower() or "×" in line or
                 re.search(r'\d+\s+подход', line, re.IGNORECASE)):
-                if re.search(r'\d+[xх\-]', line) or re.search(r'\d+\s+подход', line, re.IGNORECASE):
+                if (re.search(r'\d+[xх×\-–—]', line) or 
+                    re.search(r'\d+\s+подход', line, re.IGNORECASE) or
+                    re.search(r'\d+[xх×]\d+[–—]\d+', line)):  # Формат "4×8–10"
                     exercise_line = re.sub(r'^[\d•\-\*]\s*', '', line).strip()
                     if exercise_line and len(exercise_line) > 3:
                         current_day = {
@@ -289,9 +297,12 @@ def _parse_free_format(text: str) -> Optional[Dict]:
         all_exercises = []
         for line in text.split('\n'):
             line = line.strip()
-            if ("—" in line or "-" in line or "х" in line.lower() or "x" in line.lower() or 
+            if ("—" in line or "-" in line or "–" in line or 
+                "х" in line.lower() or "x" in line.lower() or "×" in line or
                 re.search(r'\d+\s+подход', line, re.IGNORECASE)):
-                if re.search(r'\d+[xх\-]', line) or re.search(r'\d+\s+подход', line, re.IGNORECASE):
+                if (re.search(r'\d+[xх×\-–—]', line) or 
+                    re.search(r'\d+\s+подход', line, re.IGNORECASE) or
+                    re.search(r'\d+[xх×]\d+[–—]\d+', line)):  # Формат "4×8–10"
                     exercise_line = re.sub(r'^[\d•\-\*]\s*', '', line).strip()
                     if exercise_line and len(exercise_line) > 3:
                         all_exercises.append(exercise_line)
@@ -358,11 +369,12 @@ def is_program_text(text: str) -> bool:
     )
     
     # Проверяем наличие упражнений с подходами
-    # Паттерны: "— 12-10-8", "— 4х10", "- 4x10", "— 4 подхода"
+    # Паттерны: "— 12-10-8", "— 4х10", "- 4x10", "— 4×8–10", "— 4 подхода"
     has_exercises = bool(
-        re.search(r'[—–-]\s*\d+[xх\-]', text) or
+        re.search(r'[—–-]\s*\d+[xх×\-–—]', text) or
         re.search(r'[—–-]\s*\d+\s+подход', text_lower) or
-        re.search(r'[—–-]\s*\d+-\d+', text)
+        re.search(r'[—–-]\s*\d+[–—]\d+', text) or  # Диапазоны с длинным тире
+        re.search(r'[—–-]\s*\d+[xх×]\d+[–—]\d+', text)  # Формат "4×8–10"
     )
     
     # Если есть и дни, и упражнения - это программа

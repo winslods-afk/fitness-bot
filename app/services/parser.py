@@ -72,17 +72,31 @@ def parse_exercise_string(text: str) -> Tuple[str, List[int]]:
     # Парсим подходы
     reps_list = []
     
-    # Формат: "20-16-14-12" (список повторений)
-    if re.match(r'^\d+(-\d+)+$', sets_part):
-        reps_list = [int(x) for x in sets_part.split("-")]
+    # Формат: "20-16-14-12" или "20–16–14–12" (список повторений с дефисом или длинным тире)
+    if re.match(r'^\d+([\-–—]\d+)+$', sets_part):
+        # Заменяем длинное тире на обычный дефис для парсинга
+        normalized = sets_part.replace('–', '-').replace('—', '-')
+        reps_list = [int(x) for x in normalized.split("-")]
     
-    # Формат: "4x10" или "4х10" (количество подходов x повторения)
-    elif re.match(r'^\d+[xх]\d+$', sets_part):
-        match = re.match(r'^(\d+)[xх](\d+)$', sets_part)
-        if match:
-            sets_count = int(match.group(1))
-            reps = int(match.group(2))
+    # Формат: "4x10", "4х10" или "4×10" (количество подходов x повторения)
+    # Поддерживаем символ × (умножение) и длинное тире в диапазонах "8–10"
+    elif re.match(r'^\d+[xх×]\d+$', sets_part) or re.match(r'^\d+[xх×]\d+[–—]\d+$', sets_part):
+        # Формат "4×8–10" (подходы × повторения-повторения)
+        range_match = re.match(r'^(\d+)[xх×](\d+)[–—](\d+)$', sets_part)
+        if range_match:
+            sets_count = int(range_match.group(1))
+            min_reps = int(range_match.group(2))
+            max_reps = int(range_match.group(3))
+            # Используем среднее значение или минимальное
+            reps = min_reps
             reps_list = [reps] * sets_count
+        else:
+            # Формат "4×10" (просто число)
+            match = re.match(r'^(\d+)[xх×](\d+)$', sets_part)
+            if match:
+                sets_count = int(match.group(1))
+                reps = int(match.group(2))
+                reps_list = [reps] * sets_count
     
     # Формат: "4 подхода по 10 раз" или "4 подхода по 10"
     elif re.search(r'подход', sets_part, re.IGNORECASE):
@@ -92,14 +106,21 @@ def parse_exercise_string(text: str) -> Tuple[str, List[int]]:
             reps = int(match.group(2))
             reps_list = [reps] * sets_count
     
-    # Формат: "4x10, 3x8" (несколько групп подходов)
+    # Формат: "4x10, 3x8" или "4×8–10" (несколько групп подходов или диапазоны)
     elif "," in sets_part or ";" in sets_part:
         parts = re.split(r'[,;]', sets_part)
         for part in parts:
             part = part.strip()
-            # Формат "4x10"
-            if re.match(r'^\d+[xх]\d+$', part):
-                match = re.match(r'^(\d+)[xх](\d+)$', part)
+            # Формат "4×8–10" (диапазон)
+            range_match = re.match(r'^(\d+)[xх×](\d+)[–—](\d+)$', part)
+            if range_match:
+                sets_count = int(range_match.group(1))
+                min_reps = int(range_match.group(2))
+                reps = min_reps  # Используем минимальное значение
+                reps_list.extend([reps] * sets_count)
+            # Формат "4x10" или "4×10"
+            elif re.match(r'^\d+[xх×]\d+$', part):
+                match = re.match(r'^(\d+)[xх×](\d+)$', part)
                 if match:
                     sets_count = int(match.group(1))
                     reps = int(match.group(2))
