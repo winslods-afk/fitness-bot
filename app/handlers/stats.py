@@ -29,6 +29,12 @@ class StatsStates(StatesGroup):
 @router.message(F.text == "Посмотреть статистику")
 async def cmd_view_stats(message: Message, state: FSMContext, session: AsyncSession):
     """Начало просмотра статистики."""
+    # Проверяем, что пользователь не в процессе другой операции
+    current_state = await state.get_state()
+    if current_state is not None:
+        # Если пользователь в процессе, очищаем состояние
+        await state.clear()
+    
     user = await crud.get_or_create_user(session, message.from_user.id)
     programs = await crud.get_user_sessions(session, user.id)
     
@@ -44,6 +50,7 @@ async def cmd_view_stats(message: Message, state: FSMContext, session: AsyncSess
         # Если программа одна, сразу переходим к выбору дня
         program = programs[0]
         await state.update_data(program_id=program.session_id, program_name=program.name)
+        await state.set_state(StatsStates.selecting_day)
         await show_workout_days(message, state, session, program.session_id)
     else:
         # Если программ несколько, предлагаем выбрать
@@ -95,22 +102,26 @@ async def select_day_for_stats(callback: CallbackQuery, state: FSMContext, sessi
     """Обработка выбора дня для статистики."""
     # Проверяем, находимся ли мы в режиме статистики
     current_state = await state.get_state()
-    if current_state != StatsStates.selecting_day.state:
-        await callback.answer()
-        return
     
-    day_id = int(callback.data.split("_")[-1])
-    day = await crud.get_workout_day_by_id(session, day_id)
-    
-    if not day:
-        await callback.answer("❌ День не найден", show_alert=True)
+    # Если это состояние статистики, обрабатываем
+    if current_state == StatsStates.selecting_day.state:
+        day_id = int(callback.data.split("_")[-1])
+        day = await crud.get_workout_day_by_id(session, day_id)
+        
+        if not day:
+            await callback.answer("❌ День не найден", show_alert=True)
+            await callback.message.delete()
+            await state.clear()
+            return
+        
+        await state.update_data(day_id=day_id, day_name=day.name)
         await callback.message.delete()
-        await state.clear()
+        await callback.answer()
+        await show_exercises(callback.message, state, session, day_id)
         return
     
-    await state.update_data(day_id=day_id, day_name=day.name)
-    await callback.message.delete()
-    await show_exercises(callback.message, state, session, day_id)
+    # Если это не состояние статистики, пропускаем (пусть обрабатывает training)
+    return
 
 
 async def show_exercises(message: Message, state: FSMContext, session: AsyncSession, day_id: int):
