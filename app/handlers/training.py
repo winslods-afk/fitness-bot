@@ -240,23 +240,27 @@ async def ask_for_weight(
     last_weight = await crud.get_last_weight_for_set(
         session, user.id, exercise["exercise_id"], current_set["set_index"]
     )
+    logger.info(f"Searching for last weight by exercise_id: found={last_weight is not None}")
     
     # Если не нашли, ищем по названию упражнения (для других программ)
     if not last_weight:
         last_weight = await crud.get_last_weight_for_exercise_by_name(
             session, user.id, exercise["name"], current_set["set_index"]
         )
+        logger.info(f"Searching for last weight by name: found={last_weight is not None}, exercise_name={exercise['name']}")
     
     # Получаем информацию о прошлой тренировке для контекста
     last_performed_set = await crud.get_last_performed_set_for_exercise(
         session, user.id, exercise["exercise_id"], current_set["set_index"]
     )
+    logger.info(f"Searching for last performed set by exercise_id: found={last_performed_set is not None}")
     
     # Если не нашли по ID, ищем по названию
     if not last_performed_set:
         last_performed_set = await crud.get_last_performed_set_for_exercise_by_name(
             session, user.id, exercise["name"], current_set["set_index"]
         )
+        logger.info(f"Searching for last performed set by name: found={last_performed_set is not None}, exercise_name={exercise['name']}")
     
     # Формируем сообщение
     text = f"💪 {exercise['name']}\n"
