@@ -188,6 +188,7 @@ async def get_last_weight_for_set(
 ) -> Optional[float]:
     """Получить последний вес для конкретного подхода упражнения."""
     # Находим последний выполненный подход для этого упражнения и сета
+    # Исключаем текущую тренировку, если она еще не завершена
     subquery = (
         select(PerformedSet.weight)
         .join(SessionRun, PerformedSet.session_run_id == SessionRun.id)
@@ -200,7 +201,14 @@ async def get_last_weight_for_set(
         .limit(1)
     )
     result = await session.execute(subquery)
-    return result.scalar_one_or_none()
+    weight = result.scalar_one_or_none()
+    
+    # Логируем для отладки
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"get_last_weight_for_set: user_id={user_id}, exercise_id={exercise_id}, set_index={set_index}, found={weight is not None}, weight={weight}")
+    
+    return weight
 
 
 async def get_performed_sets_by_run(

@@ -236,18 +236,20 @@ async def ask_for_weight(
     # Ищем по названию упражнения, чтобы найти прошлые результаты даже из других программ
     user = await crud.get_or_create_user(session, message.from_user.id)
     
+    logger.info(f"Searching for previous weight: user_id={user.id}, exercise_id={exercise['exercise_id']}, set_index={current_set['set_index']}, exercise_name='{exercise['name']}'")
+    
     # Сначала пытаемся найти по exercise_id (для той же программы)
     last_weight = await crud.get_last_weight_for_set(
         session, user.id, exercise["exercise_id"], current_set["set_index"]
     )
-    logger.info(f"Searching for last weight by exercise_id: found={last_weight is not None}")
+    logger.info(f"Searching for last weight by exercise_id: found={last_weight is not None}, weight={last_weight}")
     
     # Если не нашли, ищем по названию упражнения (для других программ)
     if not last_weight:
         last_weight = await crud.get_last_weight_for_exercise_by_name(
             session, user.id, exercise["name"], current_set["set_index"]
         )
-        logger.info(f"Searching for last weight by name: found={last_weight is not None}, exercise_name={exercise['name']}")
+        logger.info(f"Searching for last weight by name: found={last_weight is not None}, weight={last_weight}, exercise_name='{exercise['name']}'")
     
     # Получаем информацию о прошлой тренировке для контекста
     last_performed_set = await crud.get_last_performed_set_for_exercise(
@@ -260,7 +262,7 @@ async def ask_for_weight(
         last_performed_set = await crud.get_last_performed_set_for_exercise_by_name(
             session, user.id, exercise["name"], current_set["set_index"]
         )
-        logger.info(f"Searching for last performed set by name: found={last_performed_set is not None}, exercise_name={exercise['name']}")
+        logger.info(f"Searching for last performed set by name: found={last_performed_set is not None}, exercise_name='{exercise['name']}'")
     
     # Формируем сообщение
     text = f"💪 {exercise['name']}\n"
