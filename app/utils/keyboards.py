@@ -114,7 +114,7 @@ def get_finish_day_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def get_exercises_keyboard(exercises: List, prefix: str = "stats") -> InlineKeyboardMarkup:
+def get_exercises_keyboard(exercises: List, prefix: str = "stats", back_to: Optional[str] = None, back_item_id: Optional[int] = None) -> InlineKeyboardMarkup:
     """Клавиатура для выбора упражнения."""
     buttons = []
     for exercise in exercises:
@@ -122,6 +122,14 @@ def get_exercises_keyboard(exercises: List, prefix: str = "stats") -> InlineKeyb
             InlineKeyboardButton(
                 text=exercise.name,
                 callback_data=f"{prefix}_exercise_{exercise.exercise_id}"
+            )
+        ])
+    # Добавляем кнопку "Назад", если указаны параметры
+    if back_to and back_item_id is not None:
+        buttons.append([
+            InlineKeyboardButton(
+                text="◀️ Назад",
+                callback_data=f"stats_back_{back_to}_{back_item_id}"
             )
         ])
     return InlineKeyboardMarkup(inline_keyboard=buttons)

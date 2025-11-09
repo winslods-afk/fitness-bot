@@ -134,10 +134,19 @@ async def show_exercises(message: Message, state: FSMContext, session: AsyncSess
         await state.clear()
         return
     
+    # Получаем program_id из состояния для кнопки "Назад"
+    data = await state.get_data()
+    program_id = data.get("program_id")
+    
     await state.set_state(StatsStates.selecting_exercise)
     await message.answer(
         "💪 Выберите упражнение для просмотра статистики:",
-        reply_markup=get_exercises_keyboard(exercises, prefix="stats")
+        reply_markup=get_exercises_keyboard(
+            exercises, 
+            prefix="stats",
+            back_to="program",
+            back_item_id=program_id
+        )
     )
 
 
