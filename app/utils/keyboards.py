@@ -64,14 +64,14 @@ def get_programs_keyboard(programs: List, prefix: str = "select") -> InlineKeybo
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-def get_workout_days_keyboard(days: List) -> InlineKeyboardMarkup:
+def get_workout_days_keyboard(days: List, prefix: str = "select_day") -> InlineKeyboardMarkup:
     """Клавиатура для выбора тренировочного дня."""
     buttons = []
     for day in days:
         buttons.append([
             InlineKeyboardButton(
                 text=day.name,
-                callback_data=f"select_day_{day.id}"
+                callback_data=f"{prefix}_{day.id}"
             )
         ])
     return InlineKeyboardMarkup(inline_keyboard=buttons)

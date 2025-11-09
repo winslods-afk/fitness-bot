@@ -94,9 +94,8 @@ async def select_training_day(callback: CallbackQuery, state: FSMContext, sessio
     current_state = await state.get_state()
     data = await state.get_data()
     
-    # ПЕРВЫМ делом проверяем, не статистика ли это
-    from app.handlers.stats import StatsStates
-    if current_state == StatsStates.selecting_day.state or current_state == StatsStates.selecting_program.state:
+    # ПЕРВЫМ делом проверяем, не статистика ли это (stats_day_ обрабатывается в stats)
+    if callback.data.startswith("stats_day_"):
         # Это статистика, пропускаем
         return
     

@@ -92,17 +92,17 @@ async def show_workout_days(message: Message, state: FSMContext, session: AsyncS
     await state.set_state(StatsStates.selecting_day)
     await message.answer(
         "📅 Выберите тренировочный день:",
-        reply_markup=get_workout_days_keyboard(days)
+        reply_markup=get_workout_days_keyboard(days, prefix="stats_day")
     )
 
 
-@router.callback_query(F.data.startswith("select_day_"))
+@router.callback_query(F.data.startswith("stats_day_"))
 async def select_day_for_stats(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
     """Обработка выбора дня для статистики."""
     # Проверяем, находимся ли мы в режиме статистики
     current_state = await state.get_state()
     
-    # Если это НЕ состояние статистики, пропускаем (пусть обрабатывает training)
+    # Если это НЕ состояние статистики, пропускаем
     if current_state != StatsStates.selecting_day.state:
         return
     
