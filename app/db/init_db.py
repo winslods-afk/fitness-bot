@@ -23,9 +23,25 @@ async_session_maker = async_sessionmaker(
 
 async def init_db():
     """Создание всех таблиц в базе данных."""
+    from app.config import DB_PATH, DATABASE_URL, IS_RAILWAY, HAS_DATA_VOLUME
+    
+    logger.info("Инициализация базы данных...")
+    logger.info(f"Database URL: {DATABASE_URL.split('@')[0] if '@' in DATABASE_URL else DATABASE_URL}@***")
+    
+    if DB_PATH:
+        logger.info(f"SQLite database path: {DB_PATH}")
+        if IS_RAILWAY:
+            if HAS_DATA_VOLUME:
+                logger.info("✅ Volume /data найден - данные будут сохраняться")
+            else:
+                logger.warning("⚠️ Volume /data НЕ найден - данные могут теряться при деплое!")
+                logger.warning("⚠️ Настройте volume: railway volume add --mount-path /data")
+    else:
+        logger.info("PostgreSQL database - данные сохраняются автоматически")
+    
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    logger.info("База данных инициализирована")
+    logger.info("✅ База данных инициализирована")
 
 
 async def close_db():
