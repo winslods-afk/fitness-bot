@@ -57,8 +57,8 @@ try {
         Write-Host "❌ Файл базы данных не был создан" -ForegroundColor Red
         exit 1
     }
-    
-} catch {
+}
+catch {
     Write-Host "❌ Ошибка: $_" -ForegroundColor Red
     exit 1
 }
