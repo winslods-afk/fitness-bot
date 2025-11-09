@@ -30,17 +30,38 @@ Write-Host "OK: Project is linked to Railway" -ForegroundColor Green
 Write-Host "Downloading database from Railway..." -ForegroundColor Cyan
 
 try {
-    # Try main path - redirect output directly to file
-    railway run cat $REMOTE_DB_PATH *> $LOCAL_DB_PATH
+    # List possible database locations
+    Write-Host "Searching for database file..." -ForegroundColor Yellow
+    $findResult = railway run find /app -name "*.db" -type f 2>&1
+    Write-Host "Found files: $findResult" -ForegroundColor Gray
     
-    if ($LASTEXITCODE -ne 0) {
-        # Try alternative path
-        Write-Host "Trying alternative path: data/fitness_bot.db" -ForegroundColor Yellow
-        railway run cat "data/fitness_bot.db" *> $LOCAL_DB_PATH
+    # Try different possible paths
+    $possiblePaths = @(
+        "fitness_bot.db",
+        "data/fitness_bot.db",
+        "/app/fitness_bot.db",
+        "/app/data/fitness_bot.db",
+        "app/fitness_bot.db"
+    )
+    
+    $success = $false
+    foreach ($path in $possiblePaths) {
+        Write-Host "Trying: $path" -ForegroundColor Yellow
+        railway run cat $path *> $LOCAL_DB_PATH 2>&1
         
-        if ($LASTEXITCODE -ne 0) {
-            throw "Failed to download database"
+        if ($LASTEXITCODE -eq 0 -and (Test-Path $LOCAL_DB_PATH) -and (Get-Item $LOCAL_DB_PATH).Length -gt 0) {
+            Write-Host "Success! Database found at: $path" -ForegroundColor Green
+            $success = $true
+            break
+        } else {
+            if (Test-Path $LOCAL_DB_PATH) {
+                Remove-Item $LOCAL_DB_PATH -Force
+            }
         }
+    }
+    
+    if (-not $success) {
+        throw "Failed to download database. Check the paths above."
     }
     
     if (Test-Path $LOCAL_DB_PATH) {
