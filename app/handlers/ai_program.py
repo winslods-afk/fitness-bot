@@ -59,12 +59,15 @@ async def detect_program_in_text(message: Message, state: FSMContext, session: A
     if current_state is not None:
         return  # Пользователь в процессе, не перехватываем
     
-    # Проверяем, что это не кнопка из главного меню
+    # Проверяем, что это не кнопка из главного меню или подменю
     main_menu_buttons = [
         "Добавить программу",
         "Удалить программу",
         "Перезапустить Бота",
-        "Начать тренировку"
+        "Начать тренировку",
+        "Посмотреть статистику",
+        "Мои Программы тренировок",
+        "◀️ Назад"
     ]
     if message.text in main_menu_buttons:
         return

@@ -74,7 +74,9 @@ async def select_program_for_stats(callback: CallbackQuery, state: FSMContext, s
         return
     
     await state.update_data(program_id=program_id, program_name=program.name)
+    await state.set_state(StatsStates.selecting_day)
     await callback.message.delete()
+    await callback.answer()
     await show_workout_days(callback.message, state, session, program_id)
 
 
@@ -121,7 +123,7 @@ async def select_day_for_stats(callback: CallbackQuery, state: FSMContext, sessi
         return
     
     # Если это не состояние статистики, пропускаем (пусть обрабатывает training)
-    return
+    # НЕ вызываем callback.answer() здесь, чтобы не блокировать другие обработчики
 
 
 async def show_exercises(message: Message, state: FSMContext, session: AsyncSession, day_id: int):
