@@ -77,7 +77,8 @@ async def detect_program_in_text(message: Message, state: FSMContext, session: A
         return  # Не программа, пропускаем
     
     # Проверяем лимит программ
-    user = await crud.get_or_create_user(session, message.from_user.id)
+    username = message.from_user.username
+    user = await crud.get_or_create_user(session, message.from_user.id, username=username)
     programs_count = await crud.count_user_sessions(session, user.id)
     if programs_count >= MAX_PROGRAMS_PER_USER:
         await message.answer(
@@ -130,7 +131,8 @@ async def detect_program_request(message: Message, state: FSMContext, session: A
         return
     
     # Проверяем лимит программ
-    user = await crud.get_or_create_user(session, message.from_user.id)
+    username = message.from_user.username
+    user = await crud.get_or_create_user(session, message.from_user.id, username=username)
     programs_count = await crud.count_user_sessions(session, user.id)
     if programs_count >= MAX_PROGRAMS_PER_USER:
         await message.answer(
