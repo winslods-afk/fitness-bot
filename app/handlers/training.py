@@ -92,16 +92,24 @@ async def show_workout_days(message_or_callback, session: AsyncSession, session_
 async def select_training_day(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
     """Выбор дня для тренировки."""
     # Проверяем, находимся ли мы в режиме тренировки
+    # Проверяем по состоянию или по наличию selected_session_id в данных
     current_state = await state.get_state()
-    if current_state not in [TrainingStates.waiting_for_day.state, TrainingStates.waiting_for_program.state, None]:
-        # Если это не состояние тренировки, пропускаем (пусть обрабатывает stats)
-        await callback.answer()
+    data = await state.get_data()
+    
+    # Если это состояние статистики, пропускаем
+    from app.handlers.stats import StatsStates
+    if current_state == StatsStates.selecting_day.state:
+        # Это для статистики, пропускаем
         return
     
-    day_id = int(callback.data.split("_")[-1])
-    await callback.answer()
+    # Проверяем, что это состояние тренировки или есть selected_session_id
+    if current_state not in [TrainingStates.waiting_for_day.state, TrainingStates.waiting_for_program.state, None]:
+        # Если это не состояние тренировки и нет selected_session_id, пропускаем
+        if not data.get("selected_session_id"):
+            return
     
-    data = await state.get_data()
+    day_id = int(callback.data.split("_")[-1])
+    
     session_id = data.get("selected_session_id")
     
     # Если session_id не установлен, пытаемся получить из workout_day
@@ -110,6 +118,11 @@ async def select_training_day(callback: CallbackQuery, state: FSMContext, sessio
         if workout_day:
             session_id = workout_day.session_id
             await state.update_data(selected_session_id=session_id)
+        else:
+            # Если не можем получить session_id, это не наша задача
+            return
+    
+    await callback.answer()
     
     # Получаем день с упражнениями
     workout_day = await crud.get_workout_day_by_id(session, day_id)
