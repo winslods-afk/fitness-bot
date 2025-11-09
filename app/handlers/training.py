@@ -78,7 +78,7 @@ async def show_workout_days(message_or_callback, session: AsyncSession, session_
         if isinstance(message_or_callback, CallbackQuery):
             await message_or_callback.message.edit_text(text)
         else:
-            await message_or_callback.answer(text, reply_markup=get_main_keyboard())
+            await message_or_callback.answer(text, reply_markup=get_programs_menu_keyboard())
         return
     
     text = "Выберите тренировочный день:"
@@ -351,7 +351,7 @@ async def finish_training(message: Message, session: AsyncSession, state: FSMCon
     # Формируем итоговое сообщение
     summary = format_training_summary(performed_sets, stats)
     
-    await message.answer(summary, reply_markup=get_main_keyboard())
+    await message.answer(summary, reply_markup=get_programs_menu_keyboard())
     await state.clear()
 
 

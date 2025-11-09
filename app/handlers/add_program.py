@@ -390,6 +390,6 @@ async def process_program_name(message: Message, state: FSMContext, session: Asy
         f"✅ Программа «{program_name}» успешно создана!\n\n"
         f"Добавлено дней: {len(program_data['days'])}\n"
         f"Теперь вы можете начать тренировку.",
-        reply_markup=get_main_keyboard()
+        reply_markup=get_programs_menu_keyboard()
     )
 
