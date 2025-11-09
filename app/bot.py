@@ -29,10 +29,10 @@ def setup_handlers(dp: Dispatcher):
     dp.include_router(start.router)
     dp.include_router(add_program.router)
     dp.include_router(delete_program.router)
-    # Статистика перед тренировкой, чтобы обработчики не конфликтовали
-    dp.include_router(stats.router)
-    # Тренировка
+    # Тренировка перед статистикой - обработчик тренировки проверяет состояние первым
     dp.include_router(training.router)
+    # Статистика
+    dp.include_router(stats.router)
     
     # AI обработчики (низкий приоритет - в конце)
     from app.handlers import ai_handler, ai_program
