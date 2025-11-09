@@ -57,13 +57,22 @@ def _is_day_header(line: str) -> Optional[str]:
                 return f"{value}: {remaining}"
             return value
     
-    # День с номером: "День 1", "День 2", "ДЕНЬ 1: Название"
-    day_num_match = re.match(r'день\s+(\d+)[:\-/\s]*(.+)', line_clean, re.IGNORECASE)
+    # День с номером: "День 1", "День 2", "ДЕНЬ 1: Название", "День 1 — Грудь и Трицепс"
+    # Поддерживаем длинное тире (—) и обычное (-)
+    day_num_match = re.match(r'день\s+(\d+)[:\-—–/\s]+(.+)', line_clean, re.IGNORECASE)
     if day_num_match:
         day_name = day_num_match.group(2).strip()
         if day_name:
             return day_name
         return f"День {day_num_match.group(1)}"
+    
+    # Также проверяем формат без пробела: "День1", "День2"
+    day_num_match_no_space = re.match(r'день\s*(\d+)[:\-—–/\s]+(.+)', line_clean, re.IGNORECASE)
+    if day_num_match_no_space:
+        day_name = day_num_match_no_space.group(2).strip()
+        if day_name:
+            return day_name
+        return f"День {day_num_match_no_space.group(1)}"
     
     # День с названием группы мышц: "День ног", "День спины", "День груди"
     day_muscle_match = re.match(r'день\s+(ног|спины|груди|рук|плеч|бицепса|трицепса|пресса|кардио)', line_clean, re.IGNORECASE)
@@ -163,6 +172,54 @@ def parse_ai_program_response(ai_response: str) -> Optional[Dict]:
     return None
 
 
+def _is_descriptive_line(line: str) -> bool:
+    """
+    Определяет, является ли строка описательной (не упражнением и не заголовком дня).
+    Игнорируем строки типа:
+    - "Цель — тяговой акцент"
+    - "Отдых 90–120 сек"
+    - "Разминка: 5–10 мин"
+    - "Основная часть:"
+    - "(можно добавить...)"
+    """
+    line_lower = line.lower().strip()
+    
+    # Игнорируем пустые строки
+    if not line_lower:
+        return True
+    
+    # Игнорируем строки в скобках (комментарии)
+    if line_lower.startswith('(') and line_lower.endswith(')'):
+        return True
+    
+    # Игнорируем описательные строки
+    descriptive_patterns = [
+        r'^цель\s*[—–:\-]',  # "Цель — ..."
+        r'^отдых\s*\d+',  # "Отдых 90–120"
+        r'^разминка\s*[:]',  # "Разминка:"
+        r'^основная\s+часть',  # "Основная часть:"
+        r'^восстановительный',  # "Восстановительный..."
+        r'^можно\s+добавить',  # "можно добавить..."
+        r'^например',  # "например..."
+        r'^\d+\s*[мминсек]',  # "5–10 мин", "90–120 сек"
+    ]
+    
+    for pattern in descriptive_patterns:
+        if re.match(pattern, line_lower, re.IGNORECASE):
+            return True
+    
+    # Если строка очень короткая и не содержит чисел с подходами - вероятно описание
+    # Но не игнорируем, если это может быть заголовок дня (проверяем через паттерны)
+    if len(line_lower) < 15 and not re.search(r'\d+[xх\-]', line) and not re.search(r'\d+-\d+', line):
+        # Проверяем, не является ли это заголовком дня (без вызова функции, чтобы избежать рекурсии)
+        if not (re.match(r'день\s+\d+', line_lower) or 
+                re.match(r'день\s+(ног|спины|груди)', line_lower) or
+                re.match(r'(понедельник|вторник|среда|четверг|пятница)', line_lower)):
+            return True
+    
+    return False
+
+
 def _parse_free_format(text: str) -> Optional[Dict]:
     """
     Парсит программу из свободного формата.
@@ -179,6 +236,10 @@ def _parse_free_format(text: str) -> Optional[Dict]:
     for line in lines:
         line = line.strip()
         if not line:
+            continue
+        
+        # Пропускаем описательные строки
+        if _is_descriptive_line(line):
             continue
         
         # Проверяем, является ли строка заголовком дня
