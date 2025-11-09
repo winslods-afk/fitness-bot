@@ -9,7 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import crud
 from app.config import MAX_PROGRAMS_PER_USER
 from app.services.ai_assistant import get_ai_response, is_ai_enabled
-from app.services.program_generator import parse_ai_program_response, format_program_for_ai_request
+from app.services.program_generator import (
+    parse_ai_program_response, 
+    format_program_for_ai_request,
+    is_program_text,
+    parse_user_program
+)
 from app.services.parser import parse_exercise_string, format_exercise_name
 from app.utils.keyboards import get_main_keyboard, get_confirm_keyboard
 from app.utils.messages import get_program_limit_message
@@ -40,6 +45,73 @@ def get_save_program_keyboard(program_name: str) -> InlineKeyboardMarkup:
                 )
             ]
         ]
+    )
+
+
+@router.message(F.text & ~F.text.startswith("/"))
+async def detect_program_in_text(message: Message, state: FSMContext, session: AsyncSession):
+    """
+    Обнаружение готовой программы тренировок в тексте пользователя.
+    Обрабатывает многострочные сообщения с программой.
+    """
+    # Проверяем, что пользователь не в процессе
+    current_state = await state.get_state()
+    if current_state is not None:
+        return  # Пользователь в процессе, не перехватываем
+    
+    # Проверяем, что это не кнопка из главного меню
+    main_menu_buttons = [
+        "Добавить программу",
+        "Удалить программу",
+        "Перезапустить Бота",
+        "Начать тренировку"
+    ]
+    if message.text in main_menu_buttons:
+        return
+    
+    # Проверяем, является ли текст программой
+    if not is_program_text(message.text):
+        return  # Не программа, пропускаем
+    
+    # Проверяем лимит программ
+    user = await crud.get_or_create_user(session, message.from_user.id)
+    programs_count = await crud.count_user_sessions(session, user.id)
+    if programs_count >= MAX_PROGRAMS_PER_USER:
+        await message.answer(
+            get_program_limit_message(),
+            reply_markup=get_main_keyboard()
+        )
+        return
+    
+    # Парсим программу
+    program_data = parse_user_program(message.text)
+    
+    if not program_data or not program_data.get("days"):
+        # Не удалось распарсить, возможно это запрос на создание через AI
+        # Пропускаем, пусть обработает другой обработчик
+        return
+    
+    # Сохраняем данные программы в состояние
+    await state.update_data(program_data=program_data)
+    await state.set_state(AIProgramStates.waiting_for_confirmation)
+    
+    # Формируем предпросмотр программы
+    preview = f"📋 Обнаружена программа тренировок:\n\n"
+    preview += f"📋 {program_data['name']}\n\n"
+    
+    for i, day in enumerate(program_data["days"], 1):
+        preview += f"📅 День {i}: {day['name']}\n"
+        for exercise in day["exercises"][:3]:  # Показываем первые 3 упражнения
+            preview += f"  • {exercise}\n"
+        if len(day["exercises"]) > 3:
+            preview += f"  ... и ещё {len(day['exercises']) - 3} упражнений\n"
+        preview += "\n"
+    
+    preview += "Сохранить эту программу?"
+    
+    await message.answer(
+        preview,
+        reply_markup=get_save_program_keyboard(program_data["name"])
     )
 
 

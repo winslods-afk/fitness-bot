@@ -168,3 +168,62 @@ def format_program_for_ai_request(user_request: str) -> str:
 - Учитывай уровень подготовки из запроса пользователя
 - Отвечай ТОЛЬКО программой, без дополнительных комментариев"""
 
+
+def is_program_text(text: str) -> bool:
+    """
+    Определяет, является ли текст программой тренировок.
+    
+    Проверяет наличие:
+    - Дней (День 1, День 2, ДЕНЬ 1 и т.д.)
+    - Упражнений с подходами (формат "Название — 12-10-8" или "Название — 4х10")
+    """
+    if not text or len(text.strip()) < 20:
+        return False
+    
+    text_lower = text.lower()
+    
+    # Проверяем наличие дней
+    has_days = bool(re.search(r'день\s+\d+', text_lower))
+    
+    # Проверяем наличие упражнений с подходами
+    # Паттерны: "— 12-10-8", "— 4х10", "- 4x10", "— 4 подхода"
+    has_exercises = bool(
+        re.search(r'[—–-]\s*\d+[xх\-]', text) or
+        re.search(r'[—–-]\s*\d+\s+подход', text_lower) or
+        re.search(r'[—–-]\s*\d+-\d+', text)
+    )
+    
+    # Если есть и дни, и упражнения - это программа
+    if has_days and has_exercises:
+        return True
+    
+    # Если нет явных дней, но есть много упражнений (3+), тоже считаем программой
+    if not has_days:
+        exercise_lines = []
+        for line in text.split('\n'):
+            line = line.strip()
+            if ("—" in line or "-" in line or "х" in line.lower() or "x" in line.lower()):
+                if re.search(r'\d+[xх\-]', line) or re.search(r'\d+\s+подход', line, re.IGNORECASE):
+                    exercise_lines.append(line)
+        
+        if len(exercise_lines) >= 3:
+            return True
+    
+    return False
+
+
+def parse_user_program(text: str) -> Optional[Dict]:
+    """
+    Парсит программу тренировок, отправленную пользователем в чат.
+    
+    Поддерживает форматы:
+    - День 1: Название дня
+      Упражнение — 12-10-8
+      ...
+    - ДЕНЬ 1: Название дня
+      Упражнение — 4х10
+      ...
+    - Просто список упражнений (будет создан один день)
+    """
+    return parse_ai_program_response(text)  # Используем существующий парсер
+
