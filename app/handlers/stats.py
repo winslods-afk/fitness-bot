@@ -122,8 +122,8 @@ async def select_day_for_stats(callback: CallbackQuery, state: FSMContext, sessi
         await show_exercises(callback.message, state, session, day_id)
         return
     
-    # Если это не состояние статистики, пропускаем (пусть обрабатывает training)
-    # НЕ вызываем callback.answer() здесь, чтобы не блокировать другие обработчики
+    # Если это не состояние статистики, НЕ обрабатываем
+    # Не вызываем callback.answer() и не возвращаемся - просто пропускаем
 
 
 async def show_exercises(message: Message, state: FSMContext, session: AsyncSession, day_id: int):
