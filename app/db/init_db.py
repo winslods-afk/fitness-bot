@@ -107,6 +107,9 @@ async def init_db():
         await conn.run_sync(Base.metadata.create_all)
         logger.info("Таблицы проверены/созданы (существующие таблицы не перезаписываются)")
     
+    # Выполняем миграции для существующих таблиц
+    await _run_migrations()
+    
     # Проверяем, создался ли файл базы данных (для SQLite)
     if is_sqlite and DB_PATH:
         db_exists_after = os.path.exists(DB_PATH)
@@ -136,6 +139,64 @@ async def init_db():
             logger.warning("⚠️ Это нормально при первом запуске, но файл должен появиться после первого использования")
     
     logger.info("✅ База данных инициализирована")
+
+
+async def _run_migrations():
+    """Выполнение миграций базы данных."""
+    from sqlalchemy import text
+    from app.config import DATABASE_URL
+    
+    # Определяем тип базы данных
+    url_lower = DATABASE_URL.lower()
+    is_postgresql = "postgresql" in url_lower or "postgres" in url_lower
+    is_sqlite = "sqlite" in url_lower
+    
+    try:
+        async with engine.begin() as conn:
+            # Проверяем, существует ли колонка username в таблице users
+            if is_postgresql:
+                # Для PostgreSQL
+                result = await conn.execute(text("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'users' 
+                    AND column_name = 'username'
+                    AND table_schema = 'public'
+                """))
+                column_exists = result.fetchone() is not None
+                
+                if not column_exists:
+                    logger.info("Выполнение миграции: добавление колонки username в таблицу users...")
+                    await conn.execute(text("ALTER TABLE users ADD COLUMN username VARCHAR"))
+                    await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_username ON users(username)"))
+                    logger.info("✅ Миграция выполнена: колонка username добавлена")
+                else:
+                    logger.info("✅ Колонка username уже существует")
+            else:
+                # Для SQLite
+                # SQLite не поддерживает ALTER TABLE ADD COLUMN IF NOT EXISTS напрямую
+                # Но мы можем проверить через PRAGMA table_info
+                try:
+                    result = await conn.execute(text("PRAGMA table_info(users)"))
+                    columns = result.fetchall()
+                    column_exists = any(col[1] == 'username' for col in columns)
+                    
+                    if not column_exists:
+                        logger.info("Выполнение миграции: добавление колонки username в таблицу users...")
+                        # SQLite требует более сложную миграцию через создание новой таблицы
+                        # Но для простоты используем ALTER TABLE (работает в SQLite 3.1.3+)
+                        await conn.execute(text("ALTER TABLE users ADD COLUMN username VARCHAR"))
+                        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_username ON users(username)"))
+                        logger.info("✅ Миграция выполнена: колонка username добавлена")
+                    else:
+                        logger.info("✅ Колонка username уже существует")
+                except Exception as e:
+                    logger.error(f"❌ Ошибка при проверке/добавлении колонки username в SQLite: {e}")
+                    logger.error("Возможно, требуется ручная миграция для SQLite")
+    except Exception as e:
+        logger.error(f"❌ Ошибка при выполнении миграции: {e}")
+        logger.error("Продолжаем работу, но могут возникнуть проблемы с полем username")
+        # Не прерываем работу бота, так как это может быть временная проблема
 
 
 async def close_db():
