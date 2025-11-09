@@ -8,14 +8,9 @@ def get_main_keyboard() -> ReplyKeyboardMarkup:
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
             [
-                KeyboardButton(text="Добавить программу"),
-                KeyboardButton(text="Начать тренировку")
+                KeyboardButton(text="Мои Программы тренировок"),
+                KeyboardButton(text="Перезапустить Бота")
             ],
-            [
-                KeyboardButton(text="Удалить программу"),
-                KeyboardButton(text="Посмотреть статистику")
-            ],
-            [KeyboardButton(text="Перезапустить Бота")],
         ],
         resize_keyboard=True,
         persistent=True

@@ -95,12 +95,13 @@ async def add_program_ready(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "back_to_programs_menu")
 async def back_to_programs_menu(callback: CallbackQuery, state: FSMContext):
-    """Возврат в главное меню."""
-    await state.clear()
+    """Возврат в меню программ."""
     await callback.message.delete()
     await callback.message.answer(
-        "Главное меню",
-        reply_markup=get_main_keyboard()
+        "📋 <b>Мои Программы тренировок</b>\n\n"
+        "Выберите действие:",
+        reply_markup=get_programs_menu_keyboard(),
+        parse_mode="HTML"
     )
     await callback.answer()
 
