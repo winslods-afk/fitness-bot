@@ -88,18 +88,34 @@ async def cmd_export_db(message: Message):
     """Экспорт базы данных (только для администраторов)."""
     # Проверяем права: по ID или по username
     is_admin = False
+    user_id = message.from_user.id
+    username = message.from_user.username or ""
     
     # Проверка по ID
-    if ADMIN_IDS and message.from_user.id in ADMIN_IDS:
+    if ADMIN_IDS and user_id in ADMIN_IDS:
         is_admin = True
     
-    # Проверка по username
-    if not is_admin and ADMIN_USERNAMES and message.from_user.username:
-        if message.from_user.username.lower() in [u.lower() for u in ADMIN_USERNAMES]:
-            is_admin = True
+    # Проверка по username (без учета регистра)
+    if not is_admin and ADMIN_USERNAMES:
+        user_lower = username.lower()
+        for admin_username in ADMIN_USERNAMES:
+            if admin_username.lower() == user_lower:
+                is_admin = True
+                break
     
     if not is_admin:
-        await message.answer("❌ У вас нет прав для выполнения этой команды.")
+        # Логируем для отладки
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(
+            f"Access denied for /export_db. User ID: {user_id}, Username: {username}, "
+            f"Admin IDs: {ADMIN_IDS}, Admin Usernames: {ADMIN_USERNAMES}"
+        )
+        await message.answer(
+            f"❌ У вас нет прав для выполнения этой команды.\n\n"
+            f"Ваш ID: {user_id}\n"
+            f"Ваш username: @{username if username else 'не указан'}"
+        )
         return
     
     try:
