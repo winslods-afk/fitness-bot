@@ -227,6 +227,11 @@ async def ask_for_weight(
     
     current_set = sets[current_set_index]
     
+    # Логируем для отладки
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Asking for weight: exercise_id={exercise['exercise_id']}, current_set_index={current_set_index}, set_index={current_set['set_index']}, reps={current_set['reps']}, total_sets={len(sets)}")
+    
     # Получаем прошлый вес (если есть)
     # Ищем по названию упражнения, чтобы найти прошлые результаты даже из других программ
     user = await crud.get_or_create_user(session, message.from_user.id)
