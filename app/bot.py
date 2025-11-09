@@ -29,8 +29,9 @@ def setup_handlers(dp: Dispatcher):
     dp.include_router(start.router)
     dp.include_router(add_program.router)
     dp.include_router(delete_program.router)
-    dp.include_router(stats.router)
+    # Тренировка перед статистикой, чтобы обработчик select_day_ срабатывал правильно
     dp.include_router(training.router)
+    dp.include_router(stats.router)
     
     # AI обработчики
     from app.handlers import ai_handler, ai_program
