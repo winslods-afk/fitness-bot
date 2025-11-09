@@ -13,9 +13,11 @@ def _is_day_header(line: str) -> Optional[str]:
     - Понедельник, Вторник, Среда, Четверг, Пятница, Суббота, Воскресенье
     - День ног, День спины, День груди и т.д.
     - Пятница/Понедельник и т.д. (без слова "день")
+    - 🔹 Понедельник — Спина / Бицепс (с эмодзи и длинным тире)
     """
-    line = line.strip()
-    if not line:
+    # Убираем эмодзи и специальные символы в начале строки
+    line_clean = re.sub(r'^[🔹🔸▪️▫️•\*\-\s]+', '', line.strip())
+    if not line_clean:
         return None
     
     # Дни недели (полные названия)
@@ -36,22 +38,27 @@ def _is_day_header(line: str) -> Optional[str]:
         'вс': 'Воскресенье'
     }
     
-    line_lower = line.lower()
+    line_lower = line_clean.lower()
     
     # Проверяем дни недели
     for key, value in weekdays.items():
-        if line_lower.startswith(key) or line_lower == key:
-            # Извлекаем название после дня недели (если есть)
-            parts = line.split(':', 1)
-            if len(parts) > 1:
-                return f"{value}: {parts[1].strip()}"
-            parts = line.split('/', 1)
-            if len(parts) > 1:
-                return f"{value}: {parts[1].strip()}"
+        # Проверяем начало строки (после очистки от эмодзи)
+        if line_lower.startswith(key):
+            # Извлекаем название после дня недели
+            # Форматы: "Понедельник — Спина", "Понедельник: Спина", "Понедельник / Спина"
+            # Используем исходную строку для извлечения названия
+            remaining = line_clean[len(key):].strip()
+            
+            # Убираем разделители (—, :, /, -)
+            remaining = re.sub(r'^[—–:\-/\s]+', '', remaining)
+            
+            if remaining:
+                # Если есть название после дня недели
+                return f"{value}: {remaining}"
             return value
     
     # День с номером: "День 1", "День 2", "ДЕНЬ 1: Название"
-    day_num_match = re.match(r'день\s+(\d+)[:\-/\s]*(.+)', line, re.IGNORECASE)
+    day_num_match = re.match(r'день\s+(\d+)[:\-/\s]*(.+)', line_clean, re.IGNORECASE)
     if day_num_match:
         day_name = day_num_match.group(2).strip()
         if day_name:
@@ -59,28 +66,27 @@ def _is_day_header(line: str) -> Optional[str]:
         return f"День {day_num_match.group(1)}"
     
     # День с названием группы мышц: "День ног", "День спины", "День груди"
-    day_muscle_match = re.match(r'день\s+(ног|спины|груди|рук|плеч|бицепса|трицепса|пресса|кардио)', line, re.IGNORECASE)
+    day_muscle_match = re.match(r'день\s+(ног|спины|груди|рук|плеч|бицепса|трицепса|пресса|кардио)', line_clean, re.IGNORECASE)
     if day_muscle_match:
         muscle = day_muscle_match.group(1)
-        # Извлекаем полное название, если есть после двоеточия или слэша
-        parts = line.split(':', 1)
-        if len(parts) > 1:
-            return f"День {muscle}: {parts[1].strip()}"
-        parts = line.split('/', 1)
-        if len(parts) > 1:
-            return f"День {muscle}: {parts[1].strip()}"
+        # Извлекаем полное название, если есть после разделителей
+        remaining = line_clean[day_muscle_match.end():].strip()
+        remaining = re.sub(r'^[—–:\-/\s]+', '', remaining)
+        if remaining:
+            return f"День {muscle}: {remaining}"
         return f"День {muscle}"
     
     # Просто название группы мышц в начале строки: "Ноги", "Спина", "Грудь"
     muscle_groups = ['ноги', 'спина', 'грудь', 'руки', 'плечи', 'бицепс', 'трицепс', 'пресс', 'кардио']
     for muscle in muscle_groups:
-        if line_lower.startswith(muscle) and len(line) < 50:  # Короткая строка, вероятно заголовок
-            # Проверяем, что это не упражнение (упражнения обычно длиннее и содержат подходы)
-            if not re.search(r'[—–-]\s*\d+', line):
-                parts = line.split(':', 1)
-                if len(parts) > 1:
-                    return parts[1].strip() if parts[1].strip() else parts[0].strip()
-                return line.strip()
+        if line_lower.startswith(muscle) and len(line_clean) < 80:  # Короткая строка, вероятно заголовок
+            # Проверяем, что это не упражнение (упражнения обычно содержат подходы с числами)
+            if not re.search(r'[—–-]\s*\d+[xх\-]', line_clean) and not re.search(r'[—–-]\s*\d+-\d+', line_clean):
+                remaining = line_clean[len(muscle):].strip()
+                remaining = re.sub(r'^[—–:\-/\s]+', '', remaining)
+                if remaining:
+                    return f"{muscle.capitalize()}: {remaining}"
+                return muscle.capitalize()
     
     return None
 
