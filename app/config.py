@@ -68,24 +68,45 @@ if not DATABASE_URL:
     if IS_RAILWAY:
         # Railway deployment - используем персистентное хранилище для SQLite
         DB_DIR = "/data"
-        try:
-            os.makedirs(DB_DIR, exist_ok=True)
+        
+        # Проверяем, существует ли директория /data (volume)
+        volume_exists = os.path.exists(DB_DIR) and os.path.isdir(DB_DIR)
+        volume_writable = os.access(DB_DIR, os.W_OK) if volume_exists else False
+        
+        logger.info(f"Volume /data check: exists={volume_exists}, writable={volume_writable}")
+        
+        if not volume_exists:
+            logger.error(
+                f"❌ Директория {DB_DIR} не существует!\n"
+                f"⚠️ Volume не настроен! Данные БУДУТ теряться при деплое!\n"
+                f"⚠️ Настройте volume: railway volume add --mount-path /data\n"
+                f"⚠️ Или используйте PostgreSQL для автоматического сохранения данных"
+            )
+            # Пытаемся создать директорию (может не сработать, если volume не настроен)
+            try:
+                os.makedirs(DB_DIR, exist_ok=True)
+                volume_exists = os.path.exists(DB_DIR)
+                logger.info(f"Попытка создать директорию {DB_DIR}: success={volume_exists}")
+            except Exception as e:
+                logger.error(f"Не удалось создать директорию {DB_DIR}: {e}")
+        
+        if volume_exists and volume_writable:
             DB_PATH = os.path.join(DB_DIR, "fitness_bot.db")
             DATABASE_URL = f"sqlite+aiosqlite:///{DB_PATH}"
-            logger.info(f"Using SQLite on Railway: {DB_PATH}")
-            
-            # Проверяем, существует ли volume
-            if not HAS_DATA_VOLUME:
-                logger.warning(
-                    "⚠️ Volume /data не найден! Данные могут теряться при деплое. "
-                    "Настройте volume через Railway CLI: railway volume add --mount-path /data"
-                )
-        except Exception as e:
-            logger.error(f"Ошибка при создании директории /data: {e}")
-            # Fallback на текущую директорию (данные могут теряться)
-            DB_PATH = "fitness_bot.db"
+            logger.info(f"✅ Using SQLite on Railway: {DB_PATH}")
+            logger.info("✅ Volume /data настроен правильно - данные будут сохраняться")
+        else:
+            # Volume не работает, используем fallback (данные будут теряться!)
+            logger.error(
+                f"❌ Volume /data недоступен! Данные БУДУТ теряться при деплое!\n"
+                f"⚠️ Настройте volume: railway volume add --mount-path /data\n"
+                f"⚠️ Или используйте PostgreSQL для автоматического сохранения данных\n"
+                f"⚠️ Используется fallback путь (данные могут теряться!)"
+            )
+            # Fallback на текущую директорию (данные будут теряться при деплое!)
+            DB_PATH = os.path.join(os.getcwd(), "fitness_bot.db")
             DATABASE_URL = f"sqlite+aiosqlite:///{DB_PATH}"
-            logger.warning(f"Используется fallback путь: {DB_PATH}")
+            logger.warning(f"⚠️ Fallback database path: {DB_PATH}")
     else:
         # Локальная разработка
         DB_PATH = os.getenv("DATABASE_PATH", "fitness_bot.db")
