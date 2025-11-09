@@ -437,6 +437,11 @@ def is_program_text(text: str) -> bool:
     if not text or len(text.strip()) < 20:
         return False
     
+    # Логируем для отладки (только первые 100 символов)
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.debug(f"Проверка is_program_text: {text[:100]}...")
+    
     text_lower = text.lower()
     
     # Проверяем наличие дней (расширенный список паттернов)

@@ -73,8 +73,18 @@ async def detect_program_in_text(message: Message, state: FSMContext, session: A
         return
     
     # Проверяем, является ли текст программой
-    if not is_program_text(message.text):
+    is_program = is_program_text(message.text)
+    if not is_program:
+        # Логируем для отладки
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.debug(f"Текст не распознан как программа (длина: {len(message.text)})")
         return  # Не программа, пропускаем
+    
+    # Логируем успешное распознавание программы
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Распознана программа тренировок (длина: {len(message.text)})")
     
     # Проверяем лимит программ
     username = message.from_user.username
@@ -91,9 +101,17 @@ async def detect_program_in_text(message: Message, state: FSMContext, session: A
     program_data = parse_user_program(message.text)
     
     if not program_data or not program_data.get("days"):
-        # Не удалось распарсить, возможно это запрос на создание через AI
+        # Не удалось распарсить, логируем для отладки
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Не удалось распарсить программу. program_data: {program_data}")
         # Пропускаем, пусть обработает другой обработчик
         return
+    
+    # Логируем успешный парсинг
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Программа распарсена: {len(program_data.get('days', []))} дней")
     
     # Сохраняем данные программы в состояние
     await state.update_data(program_data=program_data)
