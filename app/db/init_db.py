@@ -103,10 +103,29 @@ async def init_db():
     if is_sqlite and DB_PATH:
         db_exists_after = os.path.exists(DB_PATH)
         if db_exists_after:
-            db_size = os.path.getsize(DB_PATH) if db_exists_after else 0
-            logger.info(f"✅ База данных создана: {DB_PATH} (размер: {db_size} байт)")
+            try:
+                db_size = os.path.getsize(DB_PATH)
+                logger.info(f"✅ База данных: {DB_PATH} (размер: {db_size} байт)")
+                
+                # Дополнительная проверка для Railway - убеждаемся, что файл в volume
+                if IS_RAILWAY:
+                    db_dir = os.path.dirname(DB_PATH)
+                    if db_dir == "/data":
+                        logger.info("✅ База данных находится в volume /data - данные сохраняются")
+                        # Проверяем содержимое директории /data
+                        try:
+                            data_contents = os.listdir("/data")
+                            logger.info(f"Содержимое /data: {data_contents}")
+                        except Exception as e:
+                            logger.error(f"Ошибка при чтении /data: {e}")
+                    else:
+                        logger.error(f"❌ База данных НЕ в volume! Путь: {DB_PATH}")
+                        logger.error("⚠️ Данные БУДУТ теряться при деплое!")
+            except Exception as e:
+                logger.error(f"Ошибка при проверке размера базы данных: {e}")
         else:
             logger.warning(f"⚠️ Файл базы данных не найден после создания: {DB_PATH}")
+            logger.warning("⚠️ Это нормально при первом запуске, но файл должен появиться после первого использования")
     
     logger.info("✅ База данных инициализирована")
 
