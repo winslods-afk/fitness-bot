@@ -12,7 +12,8 @@ from app.utils.keyboards import (
     get_programs_keyboard,
     get_workout_days_keyboard,
     get_exercises_keyboard,
-    get_stats_back_keyboard
+    get_stats_back_keyboard,
+    get_programs_menu_keyboard
 )
 
 router = Router()
@@ -35,7 +36,7 @@ async def cmd_view_stats(message: Message, state: FSMContext, session: AsyncSess
         await message.answer(
             "❌ У вас пока нет программ тренировок.\n\n"
             "Создайте программу через кнопку 'Добавить программу'.",
-            reply_markup=get_main_keyboard()
+            reply_markup=get_programs_menu_keyboard()
         )
         return
     
@@ -77,7 +78,7 @@ async def show_workout_days(message: Message, state: FSMContext, session: AsyncS
     if not days:
         await message.answer(
             "❌ В этой программе нет тренировочных дней.",
-            reply_markup=get_main_keyboard()
+            reply_markup=get_programs_menu_keyboard()
         )
         await state.clear()
         return
@@ -119,7 +120,7 @@ async def show_exercises(message: Message, state: FSMContext, session: AsyncSess
     if not exercises:
         await message.answer(
             "❌ В этом дне нет упражнений.",
-            reply_markup=get_main_keyboard()
+            reply_markup=get_programs_menu_keyboard()
         )
         await state.clear()
         return

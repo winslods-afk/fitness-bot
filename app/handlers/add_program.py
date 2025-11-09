@@ -8,7 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import MAX_PROGRAMS_PER_USER
 from app.db import crud
 from app.services.parser import parse_exercise_string, format_exercise_name
-from app.utils.keyboards import get_main_keyboard, get_days_count_keyboard
+from app.utils.keyboards import (
+    get_main_keyboard, 
+    get_days_count_keyboard, 
+    get_programs_menu_keyboard,
+    get_add_program_method_keyboard
+)
 from app.utils.messages import get_program_limit_message
 
 router = Router()
@@ -35,15 +40,68 @@ async def start_add_program(message: Message, state: FSMContext, session: AsyncS
     if programs_count >= MAX_PROGRAMS_PER_USER:
         await message.answer(
             get_program_limit_message(),
-            reply_markup=get_main_keyboard()
+            reply_markup=get_programs_menu_keyboard()
         )
         return
     
-    await state.set_state(AddProgramStates.waiting_for_days_count)
+    # Предлагаем выбрать способ добавления
     await message.answer(
+        "📝 Выберите способ добавления программы:",
+        reply_markup=get_add_program_method_keyboard()
+    )
+
+
+@router.callback_query(F.data == "add_manual")
+async def add_program_manual(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    """Добавление программы по дням (ручной ввод)."""
+    user = await crud.get_or_create_user(session, callback.from_user.id)
+    
+    # Проверяем лимит программ
+    programs_count = await crud.count_user_sessions(session, user.id)
+    if programs_count >= MAX_PROGRAMS_PER_USER:
+        await callback.message.edit_text(
+            get_program_limit_message()
+        )
+        await callback.answer()
+        return
+    
+    await callback.message.delete()
+    await state.set_state(AddProgramStates.waiting_for_days_count)
+    bot_message = await callback.message.answer(
         "Сколько тренировочных дней будет в программе?",
         reply_markup=get_days_count_keyboard()
     )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "add_ready")
+async def add_program_ready(callback: CallbackQuery, state: FSMContext):
+    """Добавление готовой программы (отправка текстом)."""
+    await callback.message.delete()
+    await callback.message.answer(
+        "📋 Отправьте готовую программу тренировок текстом.\n\n"
+        "Бот автоматически распознает программу и предложит её сохранить.\n\n"
+        "Пример формата:\n"
+        "День 1 — Спина\n"
+        "Тяга верхнего блока — 4×10\n"
+        "Тяга штанги — 3×8\n\n"
+        "День 2 — Грудь\n"
+        "Жим лёжа — 4×10\n"
+        "Отжимания — 3×12",
+        reply_markup=get_programs_menu_keyboard()
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "back_to_programs_menu")
+async def back_to_programs_menu(callback: CallbackQuery, state: FSMContext):
+    """Возврат в меню программ."""
+    await callback.message.delete()
+    await callback.message.answer(
+        "📋 Мои Программы тренировок\n\nВыберите действие:",
+        reply_markup=get_programs_menu_keyboard()
+    )
+    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("days_"))

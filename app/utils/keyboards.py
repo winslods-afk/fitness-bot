@@ -7,16 +7,40 @@ def get_main_keyboard() -> ReplyKeyboardMarkup:
     """Главная клавиатура с основными опциями."""
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="Добавить программу")],
-            [KeyboardButton(text="Удалить программу")],
-            [KeyboardButton(text="Посмотреть статистику")],
-            [KeyboardButton(text="Начать тренировку")],
+            [KeyboardButton(text="Мои Программы тренировок")],
             [KeyboardButton(text="Перезапустить Бота")],
         ],
         resize_keyboard=True,
         persistent=True
     )
     return keyboard
+
+
+def get_programs_menu_keyboard() -> ReplyKeyboardMarkup:
+    """Клавиатура подменю 'Мои Программы тренировок'."""
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="Добавить программу")],
+            [KeyboardButton(text="Удалить программу")],
+            [KeyboardButton(text="Посмотреть статистику")],
+            [KeyboardButton(text="Начать тренировку")],
+            [KeyboardButton(text="◀️ Назад")],
+        ],
+        resize_keyboard=True,
+        persistent=True
+    )
+    return keyboard
+
+
+def get_add_program_method_keyboard() -> InlineKeyboardMarkup:
+    """Клавиатура выбора способа добавления программы."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="📝 Внести по дням", callback_data="add_manual")],
+            [InlineKeyboardButton(text="📋 Отправить готовую программу", callback_data="add_ready")],
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_programs_menu")],
+        ]
+    )
 
 
 def get_days_count_keyboard() -> InlineKeyboardMarkup:

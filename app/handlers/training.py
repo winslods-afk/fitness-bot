@@ -8,8 +8,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import crud
 from app.services.stats import get_comparison_stats
 from app.utils.keyboards import (
-    get_main_keyboard, get_programs_keyboard, get_workout_days_keyboard,
-    get_start_training_keyboard
+    get_main_keyboard, 
+    get_programs_keyboard, 
+    get_workout_days_keyboard,
+    get_start_training_keyboard,
+    get_programs_menu_keyboard
 )
 from app.utils.messages import format_workout_day_info, format_training_summary
 
@@ -35,8 +38,9 @@ async def start_training(message: Message, state: FSMContext, session: AsyncSess
     
     if not programs:
         await message.answer(
-            "У вас нет программ. Сначала добавьте программу.",
-            reply_markup=get_main_keyboard()
+            "❌ У вас нет программ тренировок.\n\n"
+            "Создайте программу через кнопку 'Добавить программу'.",
+            reply_markup=get_programs_menu_keyboard()
         )
         return
     

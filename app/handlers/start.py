@@ -29,6 +29,27 @@ async def cmd_restart(message: Message, state: FSMContext):
     )
 
 
+@router.message(F.text == "Мои Программы тренировок")
+async def show_programs_menu(message: Message, state: FSMContext):
+    """Показать подменю 'Мои Программы тренировок'."""
+    await message.answer(
+        "📋 <b>Мои Программы тренировок</b>\n\n"
+        "Выберите действие:",
+        reply_markup=get_programs_menu_keyboard(),
+        parse_mode="HTML"
+    )
+
+
+@router.message(F.text == "◀️ Назад")
+async def back_to_main_menu(message: Message, state: FSMContext):
+    """Возврат в главное меню."""
+    await state.clear()
+    await message.answer(
+        "Главное меню",
+        reply_markup=get_main_keyboard()
+    )
+
+
 @router.message(F.text == "/start")
 @router.message(F.text == "/restart")
 async def cmd_start(message: Message, state: FSMContext, session: AsyncSession):

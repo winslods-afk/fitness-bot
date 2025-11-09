@@ -5,7 +5,12 @@ from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import crud
-from app.utils.keyboards import get_main_keyboard, get_programs_keyboard, get_confirm_keyboard
+from app.utils.keyboards import (
+    get_main_keyboard, 
+    get_programs_keyboard, 
+    get_confirm_keyboard,
+    get_programs_menu_keyboard
+)
 from app.utils.messages import format_program_list
 
 router = Router()
@@ -19,8 +24,8 @@ async def start_delete_program(message: Message, session: AsyncSession):
     
     if not programs:
         await message.answer(
-            "У вас нет программ для удаления.",
-            reply_markup=get_main_keyboard()
+            "❌ У вас нет программ для удаления.",
+            reply_markup=get_programs_menu_keyboard()
         )
         return
     
