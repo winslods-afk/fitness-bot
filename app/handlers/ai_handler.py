@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import crud
 from app.services.ai_assistant import get_ai_response, is_ai_enabled
+from app.services.program_generator import is_program_text
 from app.utils.keyboards import get_main_keyboard
 
 router = Router()
@@ -39,7 +40,19 @@ async def handle_free_message(message: Message, state: FSMContext, session: Asyn
     if current_state is not None:
         return  # Пользователь в процессе, не перехватываем
     
-    # Проверяем, включен ли AI
+    # Проверяем, является ли текст программой тренировок
+    if is_program_text(message.text):
+        # Это программа, пусть обрабатывает ai_program.py
+        return
+    
+    # Если это не программа, показываем сообщение
+    await message.answer(
+        "Простите, я не умею отвечать на ваши сообщения, пришлите мне программу тренировок.",
+        reply_markup=get_main_keyboard()
+    )
+    return
+    
+    # Проверяем, включен ли AI (этот код теперь не используется, но оставляем на случай)
     if not is_ai_enabled():
         # Если AI не настроен, показываем подсказку
         await message.answer(
