@@ -222,11 +222,15 @@ async def stats_back(callback: CallbackQuery, state: FSMContext, session: AsyncS
         # Возврат к выбору упражнений
         data = await state.get_data()
         await state.update_data(day_id=item_id)
+        await state.set_state(StatsStates.selecting_exercise)
+        await callback.answer()
         await show_exercises(callback.message, state, session, item_id)
     elif back_to == "program":
         # Возврат к выбору дней
         data = await state.get_data()
         await state.update_data(program_id=item_id)
+        await state.set_state(StatsStates.selecting_day)
+        await callback.answer()
         await show_workout_days(callback.message, state, session, item_id)
     else:
         # Возврат в главное меню
