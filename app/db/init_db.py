@@ -27,13 +27,36 @@ async def init_db():
     import os
     
     logger.info("Инициализация базы данных...")
+    logger.info(f"DATABASE_URL (raw): {DATABASE_URL}")
+    logger.info(f"DB_PATH: {DB_PATH}")
     
     # Определяем тип базы данных по DATABASE_URL
-    is_postgresql = DATABASE_URL.startswith("postgresql+asyncpg://") or DATABASE_URL.startswith("postgresql://")
-    is_sqlite = DATABASE_URL.startswith("sqlite+aiosqlite://") or DATABASE_URL.startswith("sqlite://")
+    # Проверяем строку напрямую, не преобразуя в lower() сразу
+    url_lower = DATABASE_URL.lower()
+    is_postgresql = "postgresql" in url_lower or "postgres" in url_lower
+    is_sqlite = "sqlite" in url_lower
     
-    logger.info(f"Database type: {'PostgreSQL' if is_postgresql else 'SQLite' if is_sqlite else 'Unknown'}")
-    logger.info(f"Database URL: {DATABASE_URL.split('@')[0] if '@' in DATABASE_URL else DATABASE_URL.split('://')[0] + '://***'}")
+    # Полный URL для логирования (без пароля)
+    if "@" in DATABASE_URL:
+        # PostgreSQL или другой URL с паролем
+        url_parts = DATABASE_URL.split("@")
+        safe_url = url_parts[0].split("://")[0] + "://***@" + "@".join(url_parts[1:])
+    else:
+        # SQLite - показываем полный путь
+        safe_url = DATABASE_URL
+    
+    db_type = "PostgreSQL" if is_postgresql else ("SQLite" if is_sqlite else "Unknown")
+    logger.info(f"Database type: {db_type}")
+    logger.info(f"Database URL: {safe_url}")
+    
+    # Дополнительная проверка для SQLite
+    if not is_sqlite and not is_postgresql:
+        logger.error(f"❌ Не удалось определить тип базы данных из URL: {DATABASE_URL[:100]}")
+        # Пытаемся определить по наличию DB_PATH
+        if DB_PATH:
+            logger.info("DB_PATH указан, предполагаем SQLite")
+            is_sqlite = True
+            db_type = "SQLite"
     
     if is_sqlite and DB_PATH:
         logger.info(f"SQLite database path: {DB_PATH}")
@@ -71,8 +94,10 @@ async def init_db():
     else:
         logger.warning(f"Неизвестный тип базы данных: {DATABASE_URL[:50]}...")
     
+    # Создаем таблицы (только если их нет - create_all не перезаписывает существующие таблицы)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        logger.info("Таблицы проверены/созданы (существующие таблицы не перезаписываются)")
     
     # Проверяем, создался ли файл базы данных (для SQLite)
     if is_sqlite and DB_PATH:
