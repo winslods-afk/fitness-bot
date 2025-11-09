@@ -79,6 +79,16 @@ else:
 logger.info(f"Final DATABASE_URL: {DATABASE_URL.split('@')[0] if '@' in DATABASE_URL else DATABASE_URL}@***")
 logger.info(f"Final DB_PATH: {DB_PATH}")
 
+# Экспорт переменных для использования в других модулях
+__all__ = [
+    "BOT_TOKEN",
+    "DATABASE_URL",
+    "DB_PATH",
+    "IS_RAILWAY",
+    "HAS_DATA_VOLUME",
+    "MAX_PROGRAMS_PER_USER"
+]
+
 # Лимиты
 MAX_PROGRAMS_PER_USER = 2
 
