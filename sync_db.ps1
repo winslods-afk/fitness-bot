@@ -30,26 +30,17 @@ Write-Host "OK: Project is linked to Railway" -ForegroundColor Green
 Write-Host "Downloading database from Railway..." -ForegroundColor Cyan
 
 try {
-    # Try main path
-    $dbContent = railway run cat $REMOTE_DB_PATH 2>&1
+    # Try main path - redirect output directly to file
+    railway run cat $REMOTE_DB_PATH *> $LOCAL_DB_PATH
     
     if ($LASTEXITCODE -ne 0) {
         # Try alternative path
         Write-Host "Trying alternative path: data/fitness_bot.db" -ForegroundColor Yellow
-        $dbContent = railway run cat "data/fitness_bot.db" 2>&1
+        railway run cat "data/fitness_bot.db" *> $LOCAL_DB_PATH
         
         if ($LASTEXITCODE -ne 0) {
             throw "Failed to download database"
         }
-    }
-    
-    # Save binary data
-    if ($PSVersionTable.PSVersion.Major -ge 6) {
-        # PowerShell Core - use -AsByteStream
-        $dbContent | Set-Content -Path $LOCAL_DB_PATH -AsByteStream -NoNewline
-    } else {
-        # PowerShell 5.x - use .NET method
-        [System.IO.File]::WriteAllBytes($LOCAL_DB_PATH, $dbContent)
     }
     
     if (Test-Path $LOCAL_DB_PATH) {
