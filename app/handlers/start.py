@@ -15,6 +15,9 @@ router = Router()
 # ID администраторов (замените на свой Telegram ID)
 ADMIN_IDS = []  # Добавьте сюда ваш Telegram ID, например: [123456789]
 
+# Username администраторов (без @)
+ADMIN_USERNAMES = ["dota_instructor"]  # Добавьте сюда username администраторов
+
 
 @router.message(F.text == "Перезапустить Бота")
 async def cmd_restart(message: Message, state: FSMContext):
@@ -83,7 +86,19 @@ async def cmd_myprograms(message: Message, session: AsyncSession):
 @router.message(F.text == "/export_db")
 async def cmd_export_db(message: Message):
     """Экспорт базы данных (только для администраторов)."""
-    if not ADMIN_IDS or message.from_user.id not in ADMIN_IDS:
+    # Проверяем права: по ID или по username
+    is_admin = False
+    
+    # Проверка по ID
+    if ADMIN_IDS and message.from_user.id in ADMIN_IDS:
+        is_admin = True
+    
+    # Проверка по username
+    if not is_admin and ADMIN_USERNAMES and message.from_user.username:
+        if message.from_user.username.lower() in [u.lower() for u in ADMIN_USERNAMES]:
+            is_admin = True
+    
+    if not is_admin:
         await message.answer("❌ У вас нет прав для выполнения этой команды.")
         return
     
