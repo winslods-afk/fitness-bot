@@ -43,7 +43,7 @@ def get_save_program_keyboard(program_name: str) -> InlineKeyboardMarkup:
     )
 
 
-@router.message(F.text.regexp(r'(создай|сделай|нужна|хочу).*программ', re.IGNORECASE))
+@router.message(F.text.regexp(r'(?i)(создай|сделай|нужна|хочу).*программ'))
 async def detect_program_request(message: Message, state: FSMContext, session: AsyncSession):
     """Обнаружение запроса на создание программы."""
     if not is_ai_enabled():
