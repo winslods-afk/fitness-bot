@@ -94,9 +94,10 @@ async def select_training_day(callback: CallbackQuery, state: FSMContext, sessio
     current_state = await state.get_state()
     data = await state.get_data()
     
-    # Если это состояние статистики, пропускаем (пусть обрабатывает stats)
+    # ПЕРВЫМ делом проверяем, не статистика ли это
     from app.handlers.stats import StatsStates
-    if current_state == StatsStates.selecting_day.state:
+    if current_state == StatsStates.selecting_day.state or current_state == StatsStates.selecting_program.state:
+        # Это статистика, пропускаем
         return
     
     # Проверяем, что это состояние тренировки
@@ -105,10 +106,7 @@ async def select_training_day(callback: CallbackQuery, state: FSMContext, sessio
         TrainingStates.waiting_for_program.state
     ]
     
-    # Или есть selected_session_id в данных (значит мы в процессе тренировки)
-    has_session_id = data.get("selected_session_id") is not None
-    
-    if not is_training_state and not has_session_id:
+    if not is_training_state:
         # Это не тренировка, пропускаем
         return
     
