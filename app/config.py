@@ -12,6 +12,9 @@ if not BOT_TOKEN:
 # Railway автоматически предоставляет DATABASE_URL для PostgreSQL
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+# Инициализируем DB_PATH как None по умолчанию
+DB_PATH = None
+
 if not DATABASE_URL:
     # Fallback на SQLite для локальной разработки или если PostgreSQL не настроен
     if os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("RAILWAY"):
@@ -31,6 +34,7 @@ else:
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
     elif DATABASE_URL.startswith("postgresql://"):
         DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+    # Для PostgreSQL DB_PATH остается None, так как это не файловая БД
 
 # Лимиты
 MAX_PROGRAMS_PER_USER = 2

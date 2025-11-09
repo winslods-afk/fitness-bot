@@ -140,14 +140,24 @@ async def cmd_export_db(message: Message):
         return
     
     try:
+        # Проверяем, используется ли SQLite (файловая БД)
+        if DB_PATH is None:
+            await message.answer(
+                "ℹ️ База данных PostgreSQL не может быть экспортирована через эту команду.\n\n"
+                "Для экспорта PostgreSQL базы данных используйте:\n"
+                "• Railway CLI: `railway connect postgres`\n"
+                "• DBeaver или другие инструменты для работы с PostgreSQL\n"
+                "• Команду `pg_dump` через Railway CLI"
+            )
+            return
+        
         # Проверяем существование файла базы данных
-        db_path = DB_PATH
-        if not os.path.exists(db_path):
-            await message.answer(f"❌ База данных не найдена по пути: {db_path}")
+        if not os.path.exists(DB_PATH):
+            await message.answer(f"❌ База данных не найдена по пути: {DB_PATH}")
             return
         
         # Читаем базу данных
-        with open(db_path, "rb") as db_file:
+        with open(DB_PATH, "rb") as db_file:
             db_data = db_file.read()
             await message.answer_document(
                 document=BufferedInputFile(
