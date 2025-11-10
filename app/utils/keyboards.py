@@ -44,6 +44,7 @@ def get_add_program_method_keyboard() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [InlineKeyboardButton(text="📝 Внести по дням", callback_data="add_manual")],
             [InlineKeyboardButton(text="📋 Отправить готовую программу", callback_data="add_ready")],
+            [InlineKeyboardButton(text="📂 Выбрать существующую", callback_data="add_program_existing")],
             [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_programs_menu")],
         ]
     )

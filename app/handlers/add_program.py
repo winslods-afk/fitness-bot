@@ -12,7 +12,8 @@ from app.utils.keyboards import (
     get_main_keyboard, 
     get_days_count_keyboard, 
     get_programs_menu_keyboard,
-    get_add_program_method_keyboard
+    get_add_program_method_keyboard,
+    get_programs_keyboard
 )
 from app.utils.messages import get_program_limit_message
 
@@ -25,6 +26,7 @@ class AddProgramStates(StatesGroup):
     waiting_for_day_name = State()
     waiting_for_exercise = State()
     waiting_for_program_name = State()
+    waiting_for_existing_program_name = State()  # Для выбора существующей программы
     current_day_index = State()
     current_days_count = State()
     program_data = State()  # Хранит временные данные программы
@@ -93,6 +95,126 @@ async def add_program_ready(callback: CallbackQuery, state: FSMContext):
         reply_markup=get_programs_menu_keyboard()
     )
     await callback.answer()
+
+
+@router.callback_query(F.data == "add_program_existing")
+async def handle_add_program_existing(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    """Обработка выбора существующей программы."""
+    username = callback.from_user.username
+    user = await crud.get_or_create_user(session, callback.from_user.id, username=username)
+    
+    # Проверяем лимит программ
+    programs_count = await crud.count_user_sessions(session, user.id)
+    if programs_count >= MAX_PROGRAMS_PER_USER:
+        await callback.message.edit_text(
+            get_program_limit_message()
+        )
+        await callback.answer()
+        return
+    
+    # Получаем все существующие программы (исключая программы пользователя)
+    all_programs = await crud.get_all_sessions(session, exclude_user_id=user.id)
+    
+    if not all_programs:
+        await callback.message.edit_text(
+            "К сожалению, пока нет доступных программ для выбора.\n"
+            "Вы можете создать новую программу."
+        )
+        await callback.answer()
+        return
+    
+    await callback.message.edit_text(
+        "Выберите программу, которую хотите добавить:\n\n"
+        "⚠️ Обратите внимание: программа будет скопирована без сохранённых рабочих весов.",
+        reply_markup=get_programs_keyboard(all_programs, prefix="select_existing")
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("select_existing_program_"))
+async def handle_select_existing_program(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    """Обработка выбора конкретной существующей программы."""
+    session_id = int(callback.data.split("_")[-1])
+    username = callback.from_user.username
+    user = await crud.get_or_create_user(session, callback.from_user.id, username=username)
+    
+    # Проверяем лимит программ
+    programs_count = await crud.count_user_sessions(session, user.id)
+    if programs_count >= MAX_PROGRAMS_PER_USER:
+        await callback.message.edit_text(
+            get_program_limit_message()
+        )
+        await callback.answer()
+        return
+    
+    # Получаем информацию о выбранной программе
+    source_session = await crud.get_session_by_id(session, session_id)
+    if not source_session:
+        await callback.message.edit_text(
+            "Программа не найдена. Попробуйте выбрать другую."
+        )
+        await callback.answer()
+        return
+    
+    # Сохраняем ID выбранной программы в состоянии
+    await state.update_data(selected_session_id=session_id, source_program_name=source_session.name)
+    await state.set_state(AddProgramStates.waiting_for_existing_program_name)
+    
+    await callback.message.edit_text(
+        f"Вы выбрали программу: «{source_session.name}»\n\n"
+        f"Введите название для вашей копии этой программы:"
+    )
+    await callback.answer()
+
+
+@router.message(AddProgramStates.waiting_for_existing_program_name)
+async def process_existing_program_name(message: Message, state: FSMContext, session: AsyncSession):
+    """Обработка названия для копии существующей программы."""
+    new_program_name = message.text.strip()
+    
+    if not new_program_name:
+        await message.answer("Пожалуйста, введите название программы.")
+        return
+    
+    data = await state.get_data()
+    source_session_id = data.get("selected_session_id")
+    
+    if not source_session_id:
+        await message.answer(
+            "Ошибка: не найдена выбранная программа. Попробуйте начать заново.",
+            reply_markup=get_programs_menu_keyboard()
+        )
+        await state.clear()
+        return
+    
+    username = message.from_user.username
+    user = await crud.get_or_create_user(session, message.from_user.id, username=username)
+    
+    try:
+        # Копируем программу без весов
+        new_session = await crud.copy_session_without_weights(
+            session, source_session_id, user.id, new_program_name
+        )
+        
+        await state.clear()
+        
+        # Получаем информацию о скопированной программе
+        workout_days = await crud.get_workout_days(session, new_session.session_id)
+        
+        await message.answer(
+            f"✅ Программа «{new_program_name}» успешно добавлена!\n\n"
+            f"Добавлено дней: {len(workout_days)}\n"
+            f"Программа скопирована без сохранённых рабочих весов.\n"
+            f"Теперь вы можете начать тренировку.",
+            reply_markup=get_programs_menu_keyboard()
+        )
+    except Exception as e:
+        await message.answer(
+            f"Ошибка при копировании программы: {str(e)}\n"
+            f"Попробуйте ещё раз.",
+            reply_markup=get_programs_menu_keyboard()
+        )
+        await state.clear()
 
 
 @router.callback_query(F.data == "back_to_programs_menu")

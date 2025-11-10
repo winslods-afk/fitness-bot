@@ -88,6 +88,66 @@ async def count_user_sessions(session: AsyncSession, user_id: int) -> int:
     return result.scalar() or 0
 
 
+async def get_all_sessions(session: AsyncSession, exclude_user_id: Optional[int] = None) -> List[Session]:
+    """Получить все программы (опционально исключая программы конкретного пользователя)."""
+    query = select(Session).order_by(Session.created_at.desc())
+    if exclude_user_id:
+        query = query.where(Session.user_id != exclude_user_id)
+    result = await session.execute(query)
+    return list(result.scalars().all())
+
+
+async def get_session_with_details(session: AsyncSession, session_id: int) -> Optional[Session]:
+    """Получить программу со всеми деталями (дни, упражнения, подходы)."""
+    result = await session.execute(
+        select(Session)
+        .where(Session.session_id == session_id)
+        .options(
+            selectinload(Session.workout_days).selectinload(WorkoutDay.exercises).selectinload(Exercise.sets)
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def copy_session_without_weights(
+    session: AsyncSession, 
+    source_session_id: int, 
+    target_user_id: int, 
+    new_name: str
+) -> Session:
+    """Скопировать программу без сохранённых весов."""
+    # Получаем исходную программу со всеми деталями
+    source_session = await get_session_with_details(session, source_session_id)
+    if not source_session:
+        raise ValueError(f"Программа с ID {source_session_id} не найдена")
+    
+    # Создаём новую программу для пользователя
+    new_session = await create_session(session, target_user_id, new_name)
+    
+    # Копируем дни, упражнения и подходы (без весов)
+    for workout_day in source_session.workout_days:
+        new_day = await create_workout_day(
+            session, new_session.session_id, workout_day.day_index, workout_day.name
+        )
+        
+        for exercise in workout_day.exercises:
+            new_exercise = await create_exercise(
+                session, new_day.id, exercise.name, exercise.order
+            )
+            
+            # Копируем подходы без весов
+            for set_obj in exercise.sets:
+                await create_set(
+                    session, 
+                    new_exercise.exercise_id, 
+                    set_obj.set_index, 
+                    set_obj.reps, 
+                    weight=None  # Не копируем веса
+                )
+    
+    return new_session
+
+
 # ========== WorkoutDay ==========
 async def create_workout_day(
     session: AsyncSession, session_id: int, day_index: int, name: str

@@ -5,6 +5,7 @@ python-dotenv==1.0.1
 asyncpg==0.29.0  # PostgreSQL async driver (для Railway PostgreSQL)
 fastapi==0.115.0
 uvicorn[standard]==0.32.0
+pydantic>=2.0.0
 # AI провайдеры (опционально, установите нужный)
 openai>=1.0.0  # Для OpenAI GPT
 aiohttp>=3.9.0  # Для Yandex GPT, Ollama
