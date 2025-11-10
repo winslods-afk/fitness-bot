@@ -1,2 +1,2 @@
-web: python -m app.main
+web: python api_server.py
 
