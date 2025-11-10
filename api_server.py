@@ -26,11 +26,15 @@ async def startup_event():
 
 
 if __name__ == "__main__":
-    # Запуск API сервера на порту 8000
+    # Запуск API сервера
+    # Railway автоматически устанавливает переменную PORT
+    import os
+    port = int(os.getenv("PORT", 8000))
+    
     uvicorn.run(
         "app.api.main:app",
         host="0.0.0.0",
-        port=8000,
+        port=port,
         log_level="info"
     )
 
