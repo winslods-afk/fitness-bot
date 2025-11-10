@@ -87,6 +87,23 @@ API можно запускать параллельно с ботом, испо
 - Swagger UI: `http://localhost:8000/docs`
 - ReDoc: `http://localhost:8000/redoc`
 
+## Тестирование в Postman
+
+### Быстрый импорт коллекции
+
+1. Откройте Postman
+2. Нажмите **"Import"** (кнопка в левом верхнем углу)
+3. Выберите файл `Fitness_Bot_API.postman_collection.json`
+4. Импортируйте окружение `Fitness_Bot_API.postman_environment.json` (опционально)
+
+### Ручная настройка
+
+1. Создайте новый запрос: **GET** `http://localhost:8000/api/users`
+2. Добавьте заголовок: **X-API-Key** = `dotainstructor`
+3. Отправьте запрос
+
+Подробная инструкция: см. `POSTMAN_SETUP.md`
+
 ## Примеры использования
 
 ### Python (requests)
